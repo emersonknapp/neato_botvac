@@ -1,0 +1,453 @@
+#!/usr/bin/env python3
+# Copyright 2019 Emerson Knapp
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+"""
+neato_driver.py is a generic driver for the Neato XV-11 Robotic Vacuum.
+
+ROS Bindings can be found in the neato_node package.
+"""
+
+__author__ = 'ferguson@cs.albany.edu (Michael Ferguson)'
+
+import threading
+import time
+
+import serial
+
+BASE_WIDTH = 248    # millimeters
+MAX_SPEED = 300     # millimeters/second
+
+neato_analog_sensors = [
+    'WallSensorInMM',
+    'BatteryVoltageInmV',
+    'LeftDropInMM',
+    'RightDropInMM',
+    'RightMagSensor',
+    'LeftMagSensor',
+    'XTemp0InC',
+    'XTemp1InC',
+    'VacuumCurrentInmA',
+    'ChargeVoltInmV',
+    'NotConnected1',
+    'BatteryTemp1InC',
+    'NotConnected2',
+    'CurrentInmA',
+    'NotConnected3',
+    'BatteryTemp0InC',
+]
+
+neato_digital_sensors = [
+    'SNSR_DC_JACK_CONNECT',
+    'SNSR_DUSTBIN_IS_IN',
+    'SNSR_LEFT_WHEEL_EXTENDED',
+    'SNSR_RIGHT_WHEEL_EXTENDED',
+    'LSIDEBIT',
+    'LFRONTBIT',
+    'RSIDEBIT',
+    'RFRONTBIT',
+]
+
+neato_motor_info = [
+    'Brush_MaxPWM',
+    'Brush_PWM',
+    'Brush_mVolts',
+    'Brush_Encoder',
+    'Brush_RPM',
+    'Vacuum_MaxPWM',
+    'Vacuum_PWM',
+    'Vacuum_CurrentInMA',
+    'Vacuum_Encoder',
+    'Vacuum_RPM',
+    'LeftWheel_MaxPWM',
+    'LeftWheel_PWM',
+    'LeftWheel_mVolts',
+    'LeftWheel_Encoder',
+    'LeftWheel_PositionInMM',
+    'LeftWheel_RPM',
+    'RightWheel_MaxPWM',
+    'RightWheel_PWM',
+    'RightWheel_mVolts',
+    'RightWheel_Encoder',
+    'RightWheel_PositionInMM',
+    'RightWheel_RPM',
+    'Laser_MaxPWM',
+    'Laser_PWM',
+    'Laser_mVolts',
+    'Laser_Encoder',
+    'Laser_RPM',
+    'Charger_MaxPWM',
+    'Charger_PWM',
+    'Charger_mAH',
+]
+
+neato_charger_info = [
+    'FuelPercent',
+    'BatteryOverTemp',
+    'ChargingActive',
+    'ChargingEnabled',
+    'ConfidentOnFuel',
+    'OnReservedFuel',
+    'EmptyFuel',
+    'BatteryFailure',
+    'ExtPwrPresent',
+    'ThermistorPresent[0]',
+    'ThermistorPresent[1]',
+    'BattTempCAvg[0]',
+    'BattTempCAvg[1]',
+    'VBattV',
+    'VExtV',
+    'Charger_mAH',
+    'MaxPWM',
+]
+
+
+class Botvac():
+
+    def __init__(self, port='/dev/ttyUSB0'):
+        self.port = serial.Serial(port, 115200, timeout=0.1)
+        if not self.port.isOpen():
+            self.err('Failed To Open Serial Port')
+            return
+        self.info('Open Serial Port {} ok'.format(port))
+
+        # Storage for motor and sensor information
+        self.state = {}
+
+        self.stop_state = True
+        self.responseData = []
+        self.currentResponse = []
+        self.reading = False
+        self.readLock = threading.RLock()
+
+        self.readThread = threading.Thread(target=self.read, daemon=True)
+        self.readThread.start()
+
+        self.setTestMode('on')
+        self.setLed('ledgreen')
+        self.setLed('blinkoff')
+
+        self.base_width = BASE_WIDTH
+        self.max_speed = MAX_SPEED
+
+        self.flush()
+
+        self.info('Init Done')
+
+    def err(self, msg):
+        print(msg)
+
+    def info(self, msg):
+        print(msg)
+
+    def shutdown(self):
+        self.setLDS('off')
+        self.setLed('buttonoff')
+
+        time.sleep(1)
+
+        self.setTestMode('off')
+        self.port.flush()
+
+        self.reading = False
+        self.readThread.join()
+
+        self.port.close()
+
+    def setTestMode(self, value):
+        """Turn test mode on/off."""
+        self.sendCmd('testmode ' + value)
+
+    def setLDS(self, value):
+        self.sendCmd('setldsrotation ' + value)
+
+    def requestScan(self):
+        """Ask neato for an array of scan reads."""
+        self.sendCmd('getldsscan')
+
+    def getScanRanges(self):
+        """Read values of a scan. Call requestScan first so that values are ready."""
+        ranges = []
+        angle = 0
+
+        if not self.readTo('AngleInDegrees'):
+            self.flush()
+            return []
+
+        last = False
+        while not last:  # angle < 360:
+            try:
+                vals, last = self.getResponse()
+            except Exception as ex:
+                self.err('Exception Reading Neato lidar: ' + str(ex))
+                last = True
+                vals = []
+
+            vals = vals.split(',')
+
+            # TODO what are magic vals 48 and 57?
+            if ((not last) and ord(vals[0][0]) >= 48 and ord(vals[0][0]) <= 57):
+                try:
+                    a = int(vals[0])
+                    r = int(vals[1])
+                    e = int(vals[3])
+
+                    while (angle < a):
+                        ranges.append(0)
+                        angle += 1
+
+                    if e == 0:
+                        ranges.append(r/1000.0)
+                    else:
+                        ranges.append(0)
+                # TODO what exceptions are expected?
+                except Exception:
+                    ranges.append(0)
+                angle += 1
+
+        if len(ranges) != 360:
+            self.info('Missing laser scans: got {} points'.format(len(ranges)))
+
+        return ranges
+
+    def setMotors(self, left, right, speed):
+        """Set motors, distance left & right + speed."""
+        """
+        This is a work-around for a bug in the Neato API. The bug is that the
+        robot won't stop instantly if a 0-velocity command is sent - the robot
+        could continue moving for up to a second. To work around this bug, the
+        first time a 0-velocity is sent in, a velocity of 1,1,1 is sent. Then,
+        the zero is sent. This effectively causes the robot to stop instantly.
+        """
+        if (int(left) == 0 and int(right) == 0 and int(speed) == 0):
+            if (not self.stop_state):
+                self.stop_state = True
+                left = 1
+                right = 1
+                speed = 1
+        else:
+            self.stop_state = False
+
+        self.sendCmd(
+            'setmotor' +
+            ' lwheeldist ' + str(int(left)) +
+            ' rwheeldist ' + str(int(right)) +
+            ' speed ' + str(int(speed)))
+
+    def getMotors(self):
+        """
+        Update values for motors in the self.state dictionary.
+
+        Returns current left, right encoder values.
+        """
+        self.sendCmd('getmotors')
+
+        if not self.readTo('Parameter'):
+            self.flush()
+            return [0, 0]
+
+        last = False
+        while not last:
+            try:
+                vals, last = self.getResponse()
+                values = vals.split(',')
+                self.state[values[0]] = float(values[1])
+            except Exception as ex:
+                self.err('Exception Reading Neato motors: ' + str(ex))
+
+        return [self.state['LeftWheel_PositionInMM'], self.state['RightWheel_PositionInMM']]
+
+    def getAnalogSensors(self):
+        """Update values for analog sensors in the self.state dictionary."""
+        self.sendCmd('getanalogsensors')
+
+        if not self.readTo('SensorName'):
+            self.flush()
+            return
+
+        last = False
+        while not last:  # for i in range(len(xv11_analog_sensors)):
+            try:
+                vals, last = self.getResponse()
+                values = vals.split(',')
+                self.state[values[0]] = int(values[1])
+            except Exception as ex:
+                self.err('Exception Reading Neato Analog sensors: ' + str(ex))
+
+    def getDigitalSensors(self):
+        """Update values for digital sensors in the self.state dictionary."""
+        self.sendCmd('getdigitalsensors')
+
+        if not self.readTo('Digital Sensor Name'):
+            self.flush()
+            return [0, 0, 0, 0]
+
+        last = False
+        while not last:
+            try:
+                vals, last = self.getResponse()
+                values = vals.split(',')
+                self.state[values[0]] = int(values[1])
+            except Exception as ex:
+                self.err('Exception Reading Neato Digital sensors: ' + str(ex))
+        return [
+            self.state['LSIDEBIT'], self.state['RSIDEBIT'],
+            self.state['LFRONTBIT'], self.state['RFRONTBIT']]
+
+    def getButtons(self):
+        return [0, 0, 0, 0, 0]
+
+    def getCharger(self):
+        """Update values for charger/battery related info in self.state dictionary."""
+        self.sendCmd('getcharger')
+
+        if not self.readTo('Label'):
+            self.flush()
+            return
+
+        last = False
+        while not last:
+            vals, last = self.getResponse()
+            values = vals.split(',')
+            try:
+                self.state[values[0]] = int(values[1])
+            except Exception as ex:
+                self.err('Exception Reading Neato charger info: ' + str(ex))
+
+    def setBacklight(self, value):
+        if value > 0:
+            self.sendCmd('setled backlighton')
+        else:
+            self.sendCmd('setled backlightoff')
+
+    def setLed(self, cmd):
+        self.sendCmd('setled %s' % cmd)
+
+    def setLED(self, cmd):
+        self.setLed(cmd)
+
+    def sendCmd(self, cmd):
+        self.port.write('{}\n'.format(cmd).encode())
+
+    def readTo(self, tag, timeout=1):
+        try:
+            line, last = self.getResponse(timeout)
+        except Exception:  # TODO what exceptions do we expect?
+            return False
+
+        if line == '':
+            return False
+
+        print(line, type(line))
+        while line.split(',')[0] != tag:
+            try:
+                line, last = self.getResponse(timeout)
+                if line == '':
+                    return False
+            except Exception:  # TODO what exceptions do we expect
+                return False
+
+        return True
+
+    def read(self):
+        """
+        Read data from the serial port continuously.
+
+        buffers each line in a list (self.comsData)
+        when an end of response (^Z) is read, adds the complete list of response lines to
+        self.responseData and resets the comsData list for the next command response.
+        """
+        self.reading = True
+        comsData = []
+        line = ''
+
+        while self.reading:
+            # read from serial 1 char at a time so we can parse each character
+            val = self.port.read(1)
+            if not val:
+                continue
+
+            first_byte = val[0]
+            # TODO abstract magic values
+            if first_byte == 13:  # ignore the CRs
+                pass
+
+            elif first_byte == 26:  # ^Z (end of response)
+                if len(line) > 0:
+                    # add last line to response set if it is not empty
+                    comsData.append(line)
+                    line = ''  # clear the line buffer for the next line
+                # got the end of the command response so add the full set of response data
+                # as a new item in self.responseData
+                with self.readLock:
+                    print('lineadd', comsData)
+                    self.responseData.append(list(comsData))
+
+                # clear the bucket for the lines of the next command response
+                comsData = []
+            # NL, terminate the current line and add it to the response data list
+            # (comsData) (if it is not a blank line)
+            elif first_byte == 10:
+                if len(line) > 0:
+                    comsData.append(line)
+                    line = ''  # clear the bufer for the next line
+            else:
+                line = line + chr(first_byte)  # add the character to the current line buffer
+
+    def getResponse(self, timeout=1):
+        """
+        Read response data for a command.
+
+        returns tuple (line,last)
+        line is one complete line of text from the command response
+        last = true if the line was the last line of the response data
+        (indicated by a ^Z from the neato)
+        returns the next line of data from the buffer.
+        if the line was the last line last = true
+        if no data is avaialable and we timeout returns line=''
+        """
+        # if we don't have any data in currentResponse, wait for more data to come in (or timeout)
+        while len(self.currentResponse) == 0 and timeout > 0:
+            # pop a new response data list out of self.responseData
+            # (should contain all data lines returned for the last sent command)
+            with self.readLock:
+                if len(self.responseData) > 0:
+                    self.currentResponse = self.responseData.pop(0)
+                else:
+                    self.currentResponse = []  # no data to get
+
+            if len(self.currentResponse) == 0:  # nothing in the buffer so wait (or until timeout)
+                time.sleep(0.010)
+                timeout -= 0.010
+
+        # default to nothing to return
+        line = ''
+        last = False
+
+        # if currentResponse has data pop the next line
+        if not len(self.currentResponse) == 0:
+            line = self.currentResponse.pop(0)
+            if len(self.currentResponse) == 0:
+                last = True  # if this was the last line in the response set the last flag
+        else:
+            self.err('Time Out')  # no data so must have timedout
+
+        return (line, last)
+
+    def flush(self):
+        while(1):
+            line, last = self.getResponse(1)
+            if line == '':
+                return
