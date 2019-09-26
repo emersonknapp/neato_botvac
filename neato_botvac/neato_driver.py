@@ -1,117 +1,38 @@
 #!/usr/bin/env python3
+# Copyright (c) 2010 University at Albany. All right reserved.
 # Copyright 2019 Emerson Knapp
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#     * Neither the name of the University at Albany nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-
-"""
-neato_driver.py is a generic driver for the Neato XV-11 Robotic Vacuum.
-
-ROS Bindings can be found in the neato_node package.
-"""
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL VANADIUM LABS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+# OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+# ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 __author__ = 'ferguson@cs.albany.edu (Michael Ferguson)'
 
 import threading
 import time
+from typing import List
 
 import serial
 
 BASE_WIDTH = 248    # millimeters
 MAX_SPEED = 300     # millimeters/second
-
-neato_analog_sensors = [
-    'WallSensorInMM',
-    'BatteryVoltageInmV',
-    'LeftDropInMM',
-    'RightDropInMM',
-    'RightMagSensor',
-    'LeftMagSensor',
-    'XTemp0InC',
-    'XTemp1InC',
-    'VacuumCurrentInmA',
-    'ChargeVoltInmV',
-    'NotConnected1',
-    'BatteryTemp1InC',
-    'NotConnected2',
-    'CurrentInmA',
-    'NotConnected3',
-    'BatteryTemp0InC',
-]
-
-neato_digital_sensors = [
-    'SNSR_DC_JACK_CONNECT',
-    'SNSR_DUSTBIN_IS_IN',
-    'SNSR_LEFT_WHEEL_EXTENDED',
-    'SNSR_RIGHT_WHEEL_EXTENDED',
-    'LSIDEBIT',
-    'LFRONTBIT',
-    'RSIDEBIT',
-    'RFRONTBIT',
-]
-
-neato_motor_info = [
-    'Brush_MaxPWM',
-    'Brush_PWM',
-    'Brush_mVolts',
-    'Brush_Encoder',
-    'Brush_RPM',
-    'Vacuum_MaxPWM',
-    'Vacuum_PWM',
-    'Vacuum_CurrentInMA',
-    'Vacuum_Encoder',
-    'Vacuum_RPM',
-    'LeftWheel_MaxPWM',
-    'LeftWheel_PWM',
-    'LeftWheel_mVolts',
-    'LeftWheel_Encoder',
-    'LeftWheel_PositionInMM',
-    'LeftWheel_RPM',
-    'RightWheel_MaxPWM',
-    'RightWheel_PWM',
-    'RightWheel_mVolts',
-    'RightWheel_Encoder',
-    'RightWheel_PositionInMM',
-    'RightWheel_RPM',
-    'Laser_MaxPWM',
-    'Laser_PWM',
-    'Laser_mVolts',
-    'Laser_Encoder',
-    'Laser_RPM',
-    'Charger_MaxPWM',
-    'Charger_PWM',
-    'Charger_mAH',
-]
-
-neato_charger_info = [
-    'FuelPercent',
-    'BatteryOverTemp',
-    'ChargingActive',
-    'ChargingEnabled',
-    'ConfidentOnFuel',
-    'OnReservedFuel',
-    'EmptyFuel',
-    'BatteryFailure',
-    'ExtPwrPresent',
-    'ThermistorPresent[0]',
-    'ThermistorPresent[1]',
-    'BattTempCAvg[0]',
-    'BattTempCAvg[1]',
-    'VBattV',
-    'VExtV',
-    'Charger_mAH',
-    'MaxPWM',
-]
 
 
 class Botvac():
@@ -136,8 +57,12 @@ class Botvac():
         self.readThread.start()
 
         self.setTestMode('on')
+        # For some reason testmode takes a sec to activate
+        # and the rest of the commands won't take if it hasn't
+        time.sleep(0.2)
         self.setLed('ledgreen')
-        self.setLed('blinkoff')
+        self.setLed('blinkon')
+        self.setLDS(True)
 
         self.base_width = BASE_WIDTH
         self.max_speed = MAX_SPEED
@@ -146,14 +71,14 @@ class Botvac():
 
         self.info('Init Done')
 
-    def err(self, msg):
+    def err(self, msg: str):
         print(msg)
 
-    def info(self, msg):
+    def info(self, msg: str):
         print(msg)
 
-    def shutdown(self):
-        self.setLDS('off')
+    def __del__(self):
+        self.setLDS(False)
         self.setLed('buttonoff')
 
         time.sleep(1)
@@ -170,14 +95,14 @@ class Botvac():
         """Turn test mode on/off."""
         self.sendCmd('testmode ' + value)
 
-    def setLDS(self, value):
-        self.sendCmd('setldsrotation ' + value)
+    def setLDS(self, value: bool):
+        self.sendCmd('setldsrotation {}'.format('on' if value else 'off'))
 
     def requestScan(self):
         """Ask neato for an array of scan reads."""
         self.sendCmd('getldsscan')
 
-    def getScanRanges(self):
+    def getScanRanges(self) -> List[float]:
         """Read values of a scan. Call requestScan first so that values are ready."""
         ranges = []
         angle = 0
@@ -204,17 +129,19 @@ class Botvac():
                     r = int(vals[1])
                     e = int(vals[3])
 
+                    # fill in missing scan values
                     while (angle < a):
-                        ranges.append(0)
+                        ranges.append(0.0)
                         angle += 1
 
                     if e == 0:
                         ranges.append(r/1000.0)
                     else:
-                        ranges.append(0)
+                        ranges.append(0.0)
                 # TODO what exceptions are expected?
-                except Exception:
-                    ranges.append(0)
+                except Exception as ex:
+                    self.err('EXCEPTIONAL {}'.format(ex))
+                    ranges.append(0.0)
                 angle += 1
 
         if len(ranges) != 360:
@@ -338,7 +265,7 @@ class Botvac():
     def setLED(self, cmd):
         self.setLed(cmd)
 
-    def sendCmd(self, cmd):
+    def sendCmd(self, cmd: str):
         self.port.write('{}\n'.format(cmd).encode())
 
     def readTo(self, tag, timeout=1):
@@ -350,7 +277,6 @@ class Botvac():
         if line == '':
             return False
 
-        print(line, type(line))
         while line.split(',')[0] != tag:
             try:
                 line, last = self.getResponse(timeout)
@@ -392,7 +318,6 @@ class Botvac():
                 # got the end of the command response so add the full set of response data
                 # as a new item in self.responseData
                 with self.readLock:
-                    print('lineadd', comsData)
                     self.responseData.append(list(comsData))
 
                 # clear the bucket for the lines of the next command response
