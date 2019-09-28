@@ -12,13 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from math import pi
+from math import pi, nan
 import signal
 
 # from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist
 import rclpy
 from rclpy.node import Node
+from sensor_msgs.msg import BatteryState
 from sensor_msgs.msg import LaserScan
 # from tf_msgs.msg import TFMessage
 
@@ -36,6 +37,7 @@ class NeatoNode(Node):
         super(NeatoNode, self).__init__('neato_botvac')
         self.bot = Botvac('/dev/ttyACM0')
         self.scan_pub = self.create_publisher(LaserScan, 'scan', 10)
+        self.battery_pub = self.create_publisher(BatteryState, 'battery', 2)
         # self.odom_pub = self.create_publisher(Odometry, 'odom', 10)
         # self.tf_pub = self.create_publisher(TFMessage, 'tf', 10)
         # self.button_pub
@@ -51,6 +53,7 @@ class NeatoNode(Node):
             range_max=5.0,
         )
         self.scan_msg.header.frame_id = 'scan'
+        self.battery_msg = BatteryState()
 
         self.scan_timer = self.create_timer(0.2, self.update)
 
@@ -59,10 +62,24 @@ class NeatoNode(Node):
         velx, vely = self.cmd_vel
         self.bot.setMotors(velx, vely, max(abs(velx), abs(vely)))
 
+        # Request all needed info
+        self.bot.getCharger()
         self.bot.requestScan()
+
+        # Publish messages
+        now = self.get_clock().now().to_msg()
+
+        self.scan_msg.header.stamp = now
         self.scan_msg.ranges = self.bot.getScanRanges()
-        self.scan_msg.header.stamp = self.get_clock().now().to_msg()
         self.scan_pub.publish(self.scan_msg)
+
+        self.battery_msg.header.stamp = now
+        self.battery_msg.voltage = self.bot.state.get('VBattV', nan)
+        self.battery_msg.temperature = self.bot.state.get('BattTempCAvg', nan)
+        self.battery_msg.current = self.bot.state.get('Discharge_mAH', nan)
+        self.battery_msg.percentage = self.bot.state.get('FuelPercent', nan)
+        self.battery_msg.present = True
+        self.battery_pub.publish(self.battery_msg)
 
     def cmd_vel_cb(self, msg: Twist):
         # TODO move control knowledge to the driver?
