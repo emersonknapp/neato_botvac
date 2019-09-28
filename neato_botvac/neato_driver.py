@@ -27,7 +27,7 @@ __author__ = 'ferguson@cs.albany.edu (Michael Ferguson)'
 
 import threading
 import time
-from typing import List
+from typing import List, Tuple
 
 import serial
 
@@ -36,8 +36,13 @@ MAX_SPEED = 300     # millimeters/second
 
 
 class Botvac():
+    """
+    Driver class to communicate easily with a Neato Botvac.
 
-    def __init__(self, port='/dev/ttyUSB0'):
+    This has only been tested on a D-series.
+    """
+
+    def __init__(self, port: str = '/dev/ttyACM0'):
         self.port = serial.Serial(port, 115200, timeout=0.1)
         if not self.port.isOpen():
             self.err('Failed To Open Serial Port')
@@ -56,7 +61,7 @@ class Botvac():
         self.readThread = threading.Thread(target=self.read, daemon=True)
         self.readThread.start()
 
-        self.setTestMode('on')
+        self._setTestMode(True)
         # For some reason testmode takes a sec to activate
         # and the rest of the commands won't take if it hasn't
         time.sleep(0.2)
@@ -71,19 +76,13 @@ class Botvac():
 
         self.info('Init Done')
 
-    def err(self, msg: str):
-        print(msg)
-
-    def info(self, msg: str):
-        print(msg)
-
-    def __del__(self):
+    def shutdown(self):
         self.setLDS(False)
         self.setLed('buttonoff')
 
-        time.sleep(1)
+        time.sleep(0.5)
 
-        self.setTestMode('off')
+        self._setTestMode(False)
         self.port.flush()
 
         self.reading = False
@@ -91,14 +90,23 @@ class Botvac():
 
         self.port.close()
 
-    def setTestMode(self, value):
+    def err(self, msg: str):
+        print(msg)
+
+    def info(self, msg: str):
+        print(msg)
+
+    def _bool_cmd(self, cmd: str, value: bool) -> None:
+        self.sendCmd('{} {}'.format(cmd, 'on' if value else 'off'))
+
+    def _setTestMode(self, value: bool) -> None:
         """Turn test mode on/off."""
-        self.sendCmd('testmode ' + value)
+        self._bool_cmd('testmode', value)
 
-    def setLDS(self, value: bool):
-        self.sendCmd('setldsrotation {}'.format('on' if value else 'off'))
+    def setLDS(self, value: bool) -> None:
+        self._bool_cmd('setldsrotation', value)
 
-    def requestScan(self):
+    def requestScan(self) -> None:
         """Ask neato for an array of scan reads."""
         self.sendCmd('getldsscan')
 
@@ -149,10 +157,10 @@ class Botvac():
 
         return ranges
 
-    def setMotors(self, left, right, speed):
+    def setMotors(self, left: int, right: int, speed: int) -> None:
         """Set motors, distance left & right + speed."""
         """
-        This is a work-around for a bug in the Neato API. The bug is that the
+        The following is a work-around for a bug in the Neato API. The bug is that the
         robot won't stop instantly if a 0-velocity command is sent - the robot
         could continue moving for up to a second. To work around this bug, the
         first time a 0-velocity is sent in, a velocity of 1,1,1 is sent. Then,
@@ -173,7 +181,7 @@ class Botvac():
             ' rwheeldist ' + str(int(right)) +
             ' speed ' + str(int(speed)))
 
-    def getMotors(self):
+    def getMotors(self) -> Tuple[int, int]:
         """
         Update values for motors in the self.state dictionary.
 
@@ -194,9 +202,9 @@ class Botvac():
             except Exception as ex:
                 self.err('Exception Reading Neato motors: ' + str(ex))
 
-        return [self.state['LeftWheel_PositionInMM'], self.state['RightWheel_PositionInMM']]
+        return (self.state['LeftWheel_PositionInMM'], self.state['RightWheel_PositionInMM'])
 
-    def getAnalogSensors(self):
+    def getAnalogSensors(self) -> None:
         """Update values for analog sensors in the self.state dictionary."""
         self.sendCmd('getanalogsensors')
 
@@ -213,7 +221,7 @@ class Botvac():
             except Exception as ex:
                 self.err('Exception Reading Neato Analog sensors: ' + str(ex))
 
-    def getDigitalSensors(self):
+    def getDigitalSensors(self) -> Tuple[int, int, int, int]:
         """Update values for digital sensors in the self.state dictionary."""
         self.sendCmd('getdigitalsensors')
 
@@ -234,9 +242,10 @@ class Botvac():
             self.state['LFRONTBIT'], self.state['RFRONTBIT']]
 
     def getButtons(self):
-        return [0, 0, 0, 0, 0]
+        raise NotImplementedError('GetButtons not implemented')
+        # return [0, 0, 0, 0, 0]
 
-    def getCharger(self):
+    def getCharger(self) -> None:
         """Update values for charger/battery related info in self.state dictionary."""
         self.sendCmd('getcharger')
 
@@ -253,22 +262,22 @@ class Botvac():
             except Exception as ex:
                 self.err('Exception Reading Neato charger info: ' + str(ex))
 
-    def setBacklight(self, value):
-        if value > 0:
+    def setBacklight(self, value: bool) -> None:
+        if value:
             self.sendCmd('setled backlighton')
         else:
             self.sendCmd('setled backlightoff')
 
-    def setLed(self, cmd):
+    def setLed(self, cmd: str) -> None:
         self.sendCmd('setled %s' % cmd)
 
-    def setLED(self, cmd):
+    def setLED(self, cmd: str) -> None:
         self.setLed(cmd)
 
-    def sendCmd(self, cmd: str):
+    def sendCmd(self, cmd: str) -> None:
         self.port.write('{}\n'.format(cmd).encode())
 
-    def readTo(self, tag, timeout=1):
+    def readTo(self, tag: str, timeout: float = 1) -> bool:
         try:
             line, last = self.getResponse(timeout)
         except Exception:  # TODO what exceptions do we expect?
