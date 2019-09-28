@@ -258,7 +258,7 @@ class Botvac():
             vals, last = self.getResponse()
             values = vals.split(',')
             try:
-                self.state[values[0]] = int(values[1])
+                self.state[values[0]] = float(values[1])
             except Exception as ex:
                 self.err('Exception Reading Neato charger info: ' + str(ex))
 
