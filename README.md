@@ -10,11 +10,18 @@ Note to self: Command currently using. TODO push docker image for others to use
 ```
 docker run -it --rm \
     --name neato \
-    --device=/dev/ttyACM0 \
+    --privileged \
     --env="DISPLAY" \
     --env="QT_X11_NO_MITSHM=1" \
     --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
+    -v /dev:/dev \
     -v $(pwd):/ws \
     -w /ws \
-    homeydev
+    neatodev
+```
+
+Attach
+
+```
+docker exec -it -w /ws neato /bin/bash
 ```
