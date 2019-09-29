@@ -12,16 +12,27 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from math import pi, nan
+from math import nan, pi
 import signal
 
-# from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import (
+    Point,
+    Pose,
+    PoseWithCovariance,
+    Quaternion,
+    Transform,
+    TransformStamped,
+    Twist,
+    TwistWithCovariance,
+    Vector3,
+)
+from nav_msgs.msg import Odometry
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import BatteryState
 from sensor_msgs.msg import LaserScan
-# from tf_msgs.msg import TFMessage
+from std_msgs.msg import Header
+from tf_msgs.msg import TFMessage
 
 from .neato_driver import Botvac
 
@@ -38,10 +49,9 @@ class NeatoNode(Node):
         self.bot = Botvac('/dev/ttyACM0')
         self.scan_pub = self.create_publisher(LaserScan, 'scan', 10)
         self.battery_pub = self.create_publisher(BatteryState, 'battery', 2)
-        # self.odom_pub = self.create_publisher(Odometry, 'odom', 10)
-        # self.tf_pub = self.create_publisher(TFMessage, 'tf', 10)
-        # self.button_pub
-        # self.sensor_pub
+        self.odom_pub = self.create_publisher(Odometry, 'odom', 10)
+        self.tf_pub = self.create_publisher(TFMessage, 'tf', 10)
+
         self.cmd_vel = (0, 0)
         self.cmd_sub = self.create_subscription(Twist, 'cmd_vel', self.cmd_vel_cb, 10)
         self.scan_msg = LaserScan(
@@ -50,8 +60,7 @@ class NeatoNode(Node):
             angle_increment=deg_to_rad(1.0),
             time_increment=0.2,
             range_min=0.2,
-            range_max=5.0,
-        )
+            range_max=5.0)
         self.scan_msg.header.frame_id = 'scan'
         self.battery_msg = BatteryState()
 
@@ -80,6 +89,30 @@ class NeatoNode(Node):
         self.battery_msg.percentage = self.bot.state.get('FuelPercent', nan)
         self.battery_msg.present = True
         self.battery_pub.publish(self.battery_msg)
+
+        odom = Odometry(
+            header=Header(stamp=now, frame_id='odom'),
+            child_frame_id='base_link',
+            pose=PoseWithCovariance(pose=Pose(
+                position=Point(),
+                orientation=Quaternion(),
+            )),
+            twist=TwistWithCovariance(twist=Twist(
+                linear=Vector3(),
+                angular=Vector3(),
+            )),
+        )
+        tf = TFMessage(transforms=[TransformStamped(
+            header=Header(stamp=now, frame_id='odom'),
+            child_frame_id='base_link',
+            transform=Transform(
+                translation=Vector3(),
+                rotation=Quaternion(),
+            )
+        )])
+
+        self.odom_pub.publish(odom)
+        self.tf_pub.publish(tf)
 
     def cmd_vel_cb(self, msg: Twist):
         # TODO move control knowledge to the driver?
