@@ -90,7 +90,6 @@ class NeatoNode(Node):
             x = x * self.bot.max_speed / k
             theta = theta * self.bot.max_speed / k
         self.cmd_vel = (int(x - theta), int(x + theta))
-        self.get_logger().info('Cmd vel ({},{})'.format(self.cmd_vel[0], self.cmd_vel[1]))
 
     def shutdown(self, *args):
         self.scan_timer.cancel()
