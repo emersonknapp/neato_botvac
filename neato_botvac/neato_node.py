@@ -87,8 +87,8 @@ class NeatoNode(Node):
         theta = msg.angular.z * self.bot.base_width / 2
         k = max(abs(x - theta), abs(x + theta))
         if k > self.bot.max_speed:
-            x = x * self.robot.max_speed / k
-            theta = theta * self.robot.max_speed / k
+            x = x * self.bot.max_speed / k
+            theta = theta * self.bot.max_speed / k
         self.cmd_vel = (int(x - theta), int(x + theta))
         self.get_logger().info('Cmd vel ({},{})'.format(self.cmd_vel[0], self.cmd_vel[1]))
 
