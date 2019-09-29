@@ -40,8 +40,15 @@ def generate_launch_description():
         output='screen',
         on_exit=launch.actions.Shutdown(),
     )
+    base_node = launch_ros.actions.Node(
+        package='neato_botvac',
+        node_executable='neato',
+        node_name='neato_base',
+        output='screen',
+    )
 
     return LaunchDescription([
+        base_node,
         joy_node,
         joy_interpreter,
     ])
