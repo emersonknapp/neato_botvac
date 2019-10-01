@@ -53,9 +53,9 @@ class Odometer:
 
         # Tracking values
         self.last_encoders = (0, 0)
-        self.x = 0
-        self.y = 0
-        self.th = 0
+        self.x = 0.
+        self.y = 0.
+        self.th = 0.
         self.linear = Vector3()
         self.angular = Vector3()
         self.orientation = Quaternion()
@@ -85,7 +85,7 @@ class Odometer:
     @property
     def odom_msg(self) -> Odometry:
         return Odometry(
-            header=Header(stamp=self.last_time.to_msg(), frame_id='odom'),
+            header=Header(stamp=self.clock.now().to_msg(), frame_id='odom'),
             child_frame_id='base_link',
             pose=PoseWithCovariance(pose=Pose(
                 position=Point(x=self.x, y=self.y, z=0.),
@@ -98,15 +98,10 @@ class Odometer:
         )
 
     @property
-    def tf_msg(self) -> TFMessage:
-        return TFMessage(transforms=[TransformStamped(
-            header=Header(stamp=self.last_time.to_msg(), frame_id='odom'),
-            child_frame_id='base_link',
-            transform=Transform(
-                translation=Vector3(x=self.x, y=self.y, z=0.),
-                rotation=self.orientation,
-            )
-        )])
+    def transform_msg(self) -> Transform:
+        return Transform(
+            translation=Vector3(x=self.x, y=self.y, z=0.),
+            rotation=self.orientation)
 
 
 class NeatoNode(Node):
@@ -126,7 +121,8 @@ class NeatoNode(Node):
             angle_min=0.0,
             angle_max=deg_to_rad(359),
             angle_increment=deg_to_rad(1.0),
-            time_increment=0.2,
+            time_increment=0.0,
+            scan_time=0.,
             range_min=0.2,
             range_max=5.0)
         self.scan_msg.header.frame_id = 'scan'
@@ -134,8 +130,36 @@ class NeatoNode(Node):
         self.odometer = Odometer(self.get_clock(), self.bot.base_width)
 
         self.scan_timer = self.create_timer(0.2, self.update)
+        self.tf_timer = self.create_timer(0.01, self.pub_tf)
+
+    def pub_tf(self):
+        now = self.get_clock().now().to_msg()
+        map_to_odom_tf = TransformStamped(
+            header=Header(stamp=now, frame_id='map'),
+            child_frame_id='odom',
+            transform=Transform(
+                translation=Vector3(x=0., y=0., z=0.),
+                rotation=Quaternion(x=0., y=0., z=0., w=1.),
+            ))
+        odom_to_base_link_tf = TransformStamped(
+            header=Header(stamp=now, frame_id='odom'),
+            child_frame_id='base_link',
+            transform=self.odometer.transform_msg)
+        base_link_to_scan_tf = TransformStamped(
+            header=Header(stamp=now, frame_id='base_link'),
+            child_frame_id='scan',
+            transform=Transform(
+                translation=Vector3(x=0., y=0., z=0.),
+                rotation=Quaternion(x=0., y=0., z=0., w=1.),
+            ))
+        self.tf_pub.publish(TFMessage(transforms=[
+            map_to_odom_tf,
+            odom_to_base_link_tf,
+            base_link_to_scan_tf,
+        ]))
 
     def update(self):
+        clock = self.get_clock()
         left, right = self.bot.getMotors()
         velx, vely = self.cmd_vel
         self.bot.setMotors(velx, vely, max(abs(velx), abs(vely)))
@@ -145,23 +169,20 @@ class NeatoNode(Node):
         self.bot.requestScan()
 
         # Publish messages
-        now = self.get_clock().now().to_msg()
-
-        self.scan_msg.header.stamp = now
         self.scan_msg.ranges = self.bot.getScanRanges()
+        self.scan_msg.header.stamp = clock.now().to_msg()
         self.scan_pub.publish(self.scan_msg)
 
-        self.battery_msg.header.stamp = now
         self.battery_msg.voltage = self.bot.state.get('VBattV', nan)
         self.battery_msg.temperature = self.bot.state.get('BattTempCAvg', nan)
         self.battery_msg.current = self.bot.state.get('Discharge_mAH', nan)
         self.battery_msg.percentage = self.bot.state.get('FuelPercent', nan)
         self.battery_msg.present = True
+        self.battery_msg.header.stamp = clock.now().to_msg()
         self.battery_pub.publish(self.battery_msg)
 
         self.odometer.update(left, right)
         self.odom_pub.publish(self.odometer.odom_msg)
-        self.tf_pub.publish(self.odometer.tf_msg)
 
     def cmd_vel_cb(self, msg: Twist):
         # TODO move control knowledge to the driver?
