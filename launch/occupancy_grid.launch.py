@@ -45,5 +45,8 @@ def generate_launch_description():
             node_name='occupancy_grid_node',
             output='screen',
             parameters=[{'use_sim_time': use_sim_time}],
-            arguments=['-resolution', resolution, '-publish_period_sec', publish_period_sec]),
+            arguments=[
+                '-resolution', resolution,
+                '-publish_period_sec', publish_period_sec,
+                '--undefok=r,params-file,ros-args']),
     ])

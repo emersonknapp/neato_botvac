@@ -17,14 +17,14 @@ from ament_index_python import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.actions import IncludeLaunchDescription
-from launch.actions import LaunchConfiguration
 from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration
 from launch.substitutions import ThisLaunchFileDir
 from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    use_sim_time = LaunchConfiguration('use_sim_time', default='false')
+    use_sim_time = LaunchConfiguration('use_sim_time', default='true')
     config_prefix = os.path.join(get_package_share_directory('neato_botvac'), 'config')
     cartographer_config_dir = LaunchConfiguration(
         'cartographer_config_dir',
@@ -48,7 +48,7 @@ def generate_launch_description():
             description='Name of lua file for cartographer'),
         DeclareLaunchArgument(
             'use_sim_time',
-            default_value='false',
+            default_value='true',
             description='Use simulation (Gazebo) clock if true'),
 
         Node(
@@ -59,7 +59,8 @@ def generate_launch_description():
             parameters=[{'use_sim_time': use_sim_time}],
             arguments=[
                 '-configuration_directory', cartographer_config_dir,
-                '-configuration_basename', configuration_basename]),
+                '-configuration_basename', configuration_basename,
+                '--undefok=r,params-file,ros-args']),
 
         DeclareLaunchArgument(
             'resolution',
@@ -79,11 +80,11 @@ def generate_launch_description():
             }.items(),
         ),
 
-        Node(
-            package='rviz2',
-            node_executable='rviz2',
-            node_name='rviz2',
-            arguments=['-d', rviz_config],
-            parameters=[{'use_sim_time': use_sim_time}],
-            output='screen'),
+        # Node(
+        #     package='rviz2',
+        #     node_executable='rviz2',
+        #     node_name='rviz2',
+        #     arguments=['-d', rviz_config],
+        #     parameters=[{'use_sim_time': use_sim_time}],
+        #     output='screen'),
     ])
