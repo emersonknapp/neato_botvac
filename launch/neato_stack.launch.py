@@ -54,10 +54,10 @@ def generate_launch_description():
         base_node,
         joy_node,
         joy_interpreter,
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource([ThisLaunchFileDir(), '/cartographer.launch.py']),
-            launch_arguments={
-                'use_sim_time': 'false',
-            }.items(),
-        ),
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource([ThisLaunchFileDir(), '/cartographer.launch.py']),
+        #     launch_arguments={
+        #         'use_sim_time': 'false',
+        #     }.items(),
+        # ),
     ])

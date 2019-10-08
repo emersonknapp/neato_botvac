@@ -14,6 +14,7 @@
 # limitations under the License.
 from math import cos, nan, pi, sin
 import signal
+import threading
 
 from geometry_msgs.msg import (
     Point,
@@ -107,9 +108,9 @@ class Odometer:
 class NeatoNode(Node):
     """ROS2 interface to the Neato Botvac."""
 
-    def __init__(self):
+    def __init__(self, shutdown_signal: threading.Event):
         super(NeatoNode, self).__init__('neato_botvac')
-        self.bot = Botvac('/dev/ttyACM0')
+        self.bot = Botvac(shutdown_signal, '/dev/ttyACM0')
         self.scan_pub = self.create_publisher(LaserScan, 'scan', 10)
         self.battery_pub = self.create_publisher(BatteryState, 'battery', 2)
         self.odom_pub = self.create_publisher(Odometry, 'odom', 10)
@@ -186,20 +187,13 @@ class NeatoNode(Node):
             theta = theta * self.bot.max_speed / k
         self.cmd_vel = (int(x - theta), int(x + theta))
 
-    def shutdown(self, *args):
-        self.scan_timer.cancel()
-        self.bot.shutdown()
-
 
 def main():
     rclpy.init()
-    node = NeatoNode()
-    # TODO this shutdown is not working correctly, we're getting caught up in get_scan
-    signal.signal(
-        signal.SIGINT,
-        lambda unused_signal, unused_frame: node.shutdown()
-    )
+    shutter = threading.Event()
+    node = NeatoNode(shutter)
     rclpy.spin(node)
+    shutter.set()
     node.destroy_node()
     rclpy.shutdown()
 

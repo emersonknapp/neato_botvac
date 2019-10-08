@@ -42,7 +42,7 @@ class Botvac():
     This has only been tested on a D-series.
     """
 
-    def __init__(self, port: str = '/dev/ttyACM0'):
+    def __init__(self, shutdown_check: threading.Event, port: str = '/dev/ttyACM0'):
         self.port = serial.Serial(port, 115200, timeout=0.1)
         if not self.port.isOpen():
             self.err('Failed To Open Serial Port')
@@ -55,7 +55,7 @@ class Botvac():
         self.stop_state = True
         self.responseData = []
         self.currentResponse = []
-        self.reading = False
+        self.stop_requested = shutdown_check
         self.readLock = threading.RLock()
 
         self.readThread = threading.Thread(target=self.read, daemon=True)
@@ -76,7 +76,7 @@ class Botvac():
 
         self.info('Init Done')
 
-    def shutdown(self):
+    def __del__(self):
         self.setLDS(False)
         self.setLed('buttonoff')
 
@@ -85,7 +85,6 @@ class Botvac():
         self._setTestMode(False)
         self.port.flush()
 
-        self.reading = False
         self.readThread.join()
 
         self.port.close()
@@ -304,11 +303,10 @@ class Botvac():
         when an end of response (^Z) is read, adds the complete list of response lines to
         self.responseData and resets the comsData list for the next command response.
         """
-        self.reading = True
         comsData = []
         line = ''
 
-        while self.reading:
+        while not self.shutdown_requested.is_set():
             # read from serial 1 char at a time so we can parse each character
             val = self.port.read(1)
             if not val:
@@ -363,6 +361,7 @@ class Botvac():
                     self.currentResponse = []  # no data to get
 
             if len(self.currentResponse) == 0:  # nothing in the buffer so wait (or until timeout)
+                self.err('Had to sleep for 10ms')
                 time.sleep(0.010)
                 timeout -= 0.010
 
