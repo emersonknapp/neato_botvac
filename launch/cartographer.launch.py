@@ -35,7 +35,7 @@ def generate_launch_description():
 
     resolution = LaunchConfiguration('resolution', default='0.05')
     publish_period_sec = LaunchConfiguration('publish_period_sec', default='1.0')
-    rviz_config = os.path.join(config_prefix, 'cartographer.rviz')
+    # rviz_config = os.path.join(config_prefix, 'cartographer.rviz')
 
     return LaunchDescription([
         DeclareLaunchArgument(
@@ -48,7 +48,7 @@ def generate_launch_description():
             description='Name of lua file for cartographer'),
         DeclareLaunchArgument(
             'use_sim_time',
-            default_value='true',
+            default_value='false',
             description='Use simulation (Gazebo) clock if true'),
 
         Node(

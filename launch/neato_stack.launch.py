@@ -17,7 +17,10 @@ import pathlib
 
 from launch import LaunchDescription
 import launch.actions
-import launch_ros.actions
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import ThisLaunchFileDir
+from launch_ros.actions import Node
 
 
 def generate_launch_description():
@@ -26,13 +29,13 @@ def generate_launch_description():
 
     print(parameters_file_path)
 
-    joy_node = launch_ros.actions.Node(
+    joy_node = Node(
         package='joy',
         node_executable='joy_node',
         node_name='joy_driver',
         output='screen',
     )
-    joy_interpreter = launch_ros.actions.Node(
+    joy_interpreter = Node(
         package='teleop_twist_joy',
         node_executable='teleop_node',
         node_name='joy_interpreter',
@@ -40,15 +43,22 @@ def generate_launch_description():
         output='screen',
         on_exit=launch.actions.Shutdown(),
     )
-    base_node = launch_ros.actions.Node(
+    base_node = Node(
         package='neato_botvac',
         node_executable='neato',
         node_name='neato_base',
         output='screen',
     )
+    # cartographer_launchfile = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource([ThisLaunchFileDir(), '/occupancy_grid.launch.py']),
+    #     launch_arguments={
+    #         'use_sim_time': 'false',
+    #     }.items(),
+    # )
 
     return LaunchDescription([
         base_node,
         joy_node,
         joy_interpreter,
+        # cartographer_launchfile,
     ])

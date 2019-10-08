@@ -134,13 +134,6 @@ class NeatoNode(Node):
 
     def pub_tf(self):
         now = self.get_clock().now().to_msg()
-        map_to_odom_tf = TransformStamped(
-            header=Header(stamp=now, frame_id='map'),
-            child_frame_id='odom',
-            transform=Transform(
-                translation=Vector3(x=0., y=0., z=0.),
-                rotation=Quaternion(x=0., y=0., z=0., w=1.),
-            ))
         odom_to_base_link_tf = TransformStamped(
             header=Header(stamp=now, frame_id='odom'),
             child_frame_id='base_link',
@@ -153,7 +146,6 @@ class NeatoNode(Node):
                 rotation=Quaternion(x=0., y=0., z=0., w=1.),
             ))
         self.tf_pub.publish(TFMessage(transforms=[
-            map_to_odom_tf,
             odom_to_base_link_tf,
             base_link_to_scan_tf,
         ]))
