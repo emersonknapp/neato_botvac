@@ -49,16 +49,15 @@ def generate_launch_description():
         node_name='neato_base',
         output='screen',
     )
-    # cartographer_launchfile = IncludeLaunchDescription(
-    #     PythonLaunchDescriptionSource([ThisLaunchFileDir(), '/occupancy_grid.launch.py']),
-    #     launch_arguments={
-    #         'use_sim_time': 'false',
-    #     }.items(),
-    # )
 
     return LaunchDescription([
         base_node,
         joy_node,
         joy_interpreter,
-        # cartographer_launchfile,
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([ThisLaunchFileDir(), '/cartographer.launch.py']),
+            launch_arguments={
+                'use_sim_time': 'false',
+            }.items(),
+        ),
     ])
