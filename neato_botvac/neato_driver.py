@@ -306,7 +306,7 @@ class Botvac():
         comsData = []
         line = ''
 
-        while not self.shutdown_requested.is_set():
+        while not self.stop_requested.is_set():
             # read from serial 1 char at a time so we can parse each character
             val = self.port.read(1)
             if not val:
@@ -361,7 +361,7 @@ class Botvac():
                     self.currentResponse = []  # no data to get
 
             if len(self.currentResponse) == 0:  # nothing in the buffer so wait (or until timeout)
-                self.err('Had to sleep for 10ms')
+                # self.err('Had to sleep for 10ms')
                 time.sleep(0.010)
                 timeout -= 0.010
 
