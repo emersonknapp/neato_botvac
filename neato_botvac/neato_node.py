@@ -162,7 +162,7 @@ class NeatoNode(Node):
         ]))
 
     def scan_cb(self, scan_data):
-        self.scan_msg.ranges = scan_data.ranges
+        self.scan_msg.ranges = [r / 1000.0 for r in scan_data.ranges]
         # TODO use the stamp from the data
         self.scan_msg.header.stamp = self.get_clock().now().to_msg()
         self.scan_pub.publish(self.scan_msg)
