@@ -40,7 +40,6 @@ class BatteryStatus(NamedTuple):
     temperature: float
     current: float
     percentage: int
-    present: bool
 
 
 class Scan(NamedTuple):
@@ -75,17 +74,52 @@ class ResponseReader(LineReader):
             traceback.print_exc(exc)
         sys.stdout.write('port closed\n')
 
+    def interpret(self, lines):
+        if len(lines) < 3:
+            print('This command is too short!')
+            return
+        cmd = lines[0].strip('\x1a').split()[0]
+        fields = lines[1].split(',')
+        print(cmd)
+        print(fields)
+
+        if cmd == 'getldsscan':
+            return Scan(
+                stamp=self.current_stamp,
+                ranges=[float(line.split(',')[1]) for line in lines[2:]]
+            )
+
+        if len(fields) > 2:
+            print('LOTS OF FIELDS')
+            print(fields)
+
+        state = {}
+        for line in lines[2:]:
+            tokens = line.split(',')
+            if len(tokens) != 2:
+                print('bad value line!')
+            else:
+                state[tokens[0]] = tokens[1]
+
+        if cmd == 'getmotors':
+            return Encoders(
+                stamp=self.current_stamp,
+                left=state['LeftWheel_PositionInMM'],
+                right=state['RightWheel_PositionInMM'])
+        elif cmd == 'getcharger':
+            return BatteryStatus(
+                stamp=self.current_stamp,
+                voltage=float(state['VBattV']),
+                temperature=float(state['BattTempCAvg']),
+                current=float(state['Discharge_mAH']),
+                percentage=float(state['FuelPercent']))
+
     def _command_complete(self):
         print('Received full message at {}'.format(self.current_stamp))
-        state = {}
-
-        # interpret
-        for line in self.current_lines:
-            tokens = line.split(',')
-            if len(tokens) > 1:
-                state[tokens[0]] = tokens[1]
-        print(state)
-
+        try:
+            print(self.interpret(self.current_lines))
+        except Exception as e:
+            print('Interpreting failed: {}'.format(e))
         # clean up
         self.current_lines = []
 
@@ -149,33 +183,24 @@ class BotvacDriver:
         pass
 
     def requestEncoders(self):
+        """Send a request for the latest motor encoder status."""
         self._protocol.write_line('getmotors')
 
     def requestBattery(self) -> None:
-        """
-        Send a request for latest battery status.
-
-        If there is a registered callback for battery, it will be called when the values
-        are ready.
-        """
+        """Send a request for latest battery status."""
         self._protocol.write_line('getcharger')
 
     def requestScan(self) -> None:
-        """
-        Send a request for latest LIDAR scan.
-
-        If there is a registered `scan` callback, it will be called when the values
-        are ready.
-        """
+        """Send a request for latest LIDAR scan."""
         self._protocol.write_line('getldsscan')
 
 
 def main():
     driver = BotvacDriver()
     while 1:
-        driver.requestEncoders()
-        driver.requestBattery()
-        # driver.requestScan()
+        # driver.requestEncoders()
+        # driver.requestBattery()
+        driver.requestScan()
         time.sleep(1)
     # ser = serial.serial_for_url('/dev/ttyACM0', baudrate=115200, timeout=1)
     # state = {}
