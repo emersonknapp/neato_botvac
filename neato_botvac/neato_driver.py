@@ -85,7 +85,7 @@ class ResponseReader(LineReader):
         if cmd == 'getldsscan':
             result = Scan(
                 stamp=self.current_stamp,
-                ranges=[int(line.split(',')[1]) for line in lines[2:]]
+                ranges=[int(line.split(',')[1]) for line in lines[2:-1]]
             )
             if self.callbacks.scan:
                 self.callbacks.scan(result)

@@ -110,9 +110,8 @@ class Odometer:
 class NeatoNode(Node):
     """ROS2 interface to the Neato Botvac."""
 
-    def __init__(self, shutdown_signal: threading.Event):
+    def __init__(self):
         super(NeatoNode, self).__init__('neato_botvac')
-        # self.bot = Botvac(shutdown_signal, '/dev/ttyACM0')
         self.bot = BotvacDriver('/dev/ttyACM0', callbacks=BotvacDriverCallbacks(
             encoders=self.encoders_cb,
             battery=self.battery_cb,
@@ -201,10 +200,8 @@ class NeatoNode(Node):
 
 def main():
     rclpy.init()
-    shutter = threading.Event()
-    node = NeatoNode(shutter)
+    node = NeatoNode()
     rclpy.spin(node)
-    shutter.set()
     node.destroy_node()
     rclpy.shutdown()
 
