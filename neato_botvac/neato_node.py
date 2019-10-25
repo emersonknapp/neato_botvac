@@ -34,7 +34,7 @@ from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Header
 from tf2_msgs.msg import TFMessage
 
-from .neato_driver2 import (
+from .neato_driver import (
     BotvacDriver,
     BotvacDriverCallbacks,
 )
