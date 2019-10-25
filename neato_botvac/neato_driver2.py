@@ -60,10 +60,11 @@ class BotvacDriverCallbacks(NamedTuple):
 
 
 class ResponseReader(LineReader):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, callbacks, *args, **kwargs):
         super(ResponseReader, self).__init__(*args, **kwargs)
         self.current_stamp = time.time()
         self.current_lines = []
+        self.callbacks = callbacks
 
     def connection_made(self, transport):
         super(ResponseReader, self).connection_made(transport)
@@ -80,14 +81,15 @@ class ResponseReader(LineReader):
             return
         cmd = lines[0].strip('\x1a').split()[0]
         fields = lines[1].split(',')
-        print(cmd)
-        print(fields)
 
         if cmd == 'getldsscan':
-            return Scan(
+            result = Scan(
                 stamp=self.current_stamp,
                 ranges=[float(line.split(',')[1]) for line in lines[2:]]
             )
+            if self.callbacks.scan:
+                self.callbacks.scan(result)
+            return
 
         if len(fields) > 2:
             print('LOTS OF FIELDS')
@@ -102,22 +104,27 @@ class ResponseReader(LineReader):
                 state[tokens[0]] = tokens[1]
 
         if cmd == 'getmotors':
-            return Encoders(
+            result = Encoders(
                 stamp=self.current_stamp,
-                left=state['LeftWheel_PositionInMM'],
-                right=state['RightWheel_PositionInMM'])
+                left=int(state['LeftWheel_PositionInMM']),
+                right=int(state['RightWheel_PositionInMM']))
+            if self.callbacks.encoders:
+                self.callbacks.encoders(result)
+            return
         elif cmd == 'getcharger':
-            return BatteryStatus(
+            result = BatteryStatus(
                 stamp=self.current_stamp,
                 voltage=float(state['VBattV']),
                 temperature=float(state['BattTempCAvg']),
                 current=float(state['Discharge_mAH']),
                 percentage=float(state['FuelPercent']))
+            if self.callbacks.battery:
+                self.callbacks.battery(result)
+            return
 
     def _command_complete(self):
-        print('Received full message at {}'.format(self.current_stamp))
         try:
-            print(self.interpret(self.current_lines))
+            self.interpret(self.current_lines)
         except Exception as e:
             print('Interpreting failed: {}'.format(e))
         # clean up
@@ -139,6 +146,10 @@ class BotvacDriver:
         baud: int = 115200,
         callbacks: Optional[BotvacDriverCallbacks] = None,
     ):
+        self._base_width = 240  # mm
+        self._max_speed = 300  # mm/s
+        self._callbacks = callbacks
+
         self._port = serial.Serial(port, baud, timeout=1)
         self._reader = ReaderThread(self._port, self._get_reader)
         self._reader.start()
@@ -148,9 +159,6 @@ class BotvacDriver:
             raise RuntimeError('connection_lost already called')
 
         self._protocol = self._reader.protocol
-        self._base_width = 240  # mm
-        self._max_speed = 300  # mm/s
-        self._callbacks = callbacks
         self._setTestMode(True)
         time.sleep(0.5)  # TODO should be able to build this into our communications
         self._setLDS(True)
@@ -160,15 +168,15 @@ class BotvacDriver:
         self._setTestMode(False)
 
     def _get_reader(self):
-        return ResponseReader()
+        return ResponseReader(self._callbacks)
 
     @property
-    def baseWidth(self) -> int:
+    def base_width(self) -> int:
         """Distance between wheel centers, in mm."""
         return self._base_width
 
     @property
-    def maxSpeed(self) -> int:
+    def max_speed(self) -> int:
         """Max speed of a robot wheel, in mm/s."""
         return self._max_speed
 

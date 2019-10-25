@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from math import cos, nan, pi, sin
-import signal
 import threading
 
 from geometry_msgs.msg import (
@@ -36,6 +35,10 @@ from std_msgs.msg import Header
 from tf2_msgs.msg import TFMessage
 
 from .neato_driver import Botvac
+from .neato_driver2 import (
+    BotvacDriver,
+    BotvacDriverCallbacks,
+)
 
 
 def nano_to_sec(nanos):
@@ -110,7 +113,11 @@ class NeatoNode(Node):
 
     def __init__(self, shutdown_signal: threading.Event):
         super(NeatoNode, self).__init__('neato_botvac')
-        self.bot = Botvac(shutdown_signal, '/dev/ttyACM0')
+        # self.bot = Botvac(shutdown_signal, '/dev/ttyACM0')
+        self.bot = BotvacDriver('/dev/ttyACM0', callbacks=BotvacDriverCallbacks(
+            encoders=self.encoders_cb,
+            battery=self.battery_cb,
+            scan=self.scan_cb))
         self.scan_pub = self.create_publisher(LaserScan, 'scan', 10)
         self.battery_pub = self.create_publisher(BatteryState, 'battery', 2)
         self.odom_pub = self.create_publisher(Odometry, 'odom', 10)
@@ -128,54 +135,59 @@ class NeatoNode(Node):
             range_max=5.0)
         self.scan_msg.header.frame_id = 'scan'
         self.battery_msg = BatteryState()
-        self.odometer = Odometer(self.get_clock(), self.bot.base_width)
-
-        self.scan_timer = self.create_timer(0.2, self.update)
-        self.tf_timer = self.create_timer(0.01, self.pub_tf)
-
-    def pub_tf(self):
-        now = self.get_clock().now().to_msg()
-        odom_to_base_link_tf = TransformStamped(
-            header=Header(stamp=now, frame_id='odom'),
-            child_frame_id='base_link',
-            transform=self.odometer.transform_msg)
-        base_link_to_scan_tf = TransformStamped(
-            header=Header(stamp=now, frame_id='base_link'),
+        self.odom_to_base_link_tf = TransformStamped(
+            header=Header(frame_id='odom'),
+            child_frame_id='base_link')
+        self.base_link_to_scan_tf = TransformStamped(
+            header=Header(frame_id='base_link'),
             child_frame_id='scan',
             transform=Transform(
                 translation=Vector3(x=0., y=0., z=0.),
                 rotation=Quaternion(x=0., y=0., z=0., w=1.),
             ))
+        self.odometer = Odometer(self.get_clock(), self.bot.base_width)
+
+        self.tf_timer = self.create_timer(0.025, self.pub_tf)
+        self.scan_timer = self.create_timer(0.2, self.bot.requestScan)
+        self.battery_timer = self.create_timer(1, self.bot.requestBattery)
+        self.encoder_timer = self.create_timer(0.1, self.bot.requestEncoders)
+
+    def pub_tf(self):
+        now = self.get_clock().now().to_msg()
+        self.odom_to_base_link_tf.header.stamp = now
+        self.odom_to_base_link_tf.transform = self.odometer.transform_msg
+        self.base_link_to_scan_tf.header.stamp = now
         self.tf_pub.publish(TFMessage(transforms=[
-            odom_to_base_link_tf,
-            base_link_to_scan_tf,
+            self.odom_to_base_link_tf,
+            self.base_link_to_scan_tf,
         ]))
 
-    def update(self):
-        clock = self.get_clock()
-        left, right = self.bot.getMotors()
-        velx, vely = self.cmd_vel
-        self.bot.setMotors(velx, vely, max(abs(velx), abs(vely)))
-
-        # Request all needed info
-        self.bot.getCharger()
-        self.bot.requestScan()
-
-        # Publish messages
-        self.scan_msg.ranges = self.bot.getScanRanges()
-        self.scan_msg.header.stamp = clock.now().to_msg()
+    def scan_cb(self, scan_data):
+        self.scan_msg.ranges = scan_data.ranges
+        # TODO use the stamp from the data
+        self.scan_msg.header.stamp = self.get_clock().now().to_msg()
         self.scan_pub.publish(self.scan_msg)
 
-        self.battery_msg.voltage = self.bot.state.get('VBattV', nan)
-        self.battery_msg.temperature = self.bot.state.get('BattTempCAvg', nan)
-        self.battery_msg.current = self.bot.state.get('Discharge_mAH', nan)
-        self.battery_msg.percentage = self.bot.state.get('FuelPercent', nan)
+    def encoders_cb(self, encoders_data):
+        self.odometer.update(encoders_data.left, encoders_data.right)
+        # TODO use the stamp from the data
+        self.odom_pub.publish(self.odometer.odom_msg)
+
+    def battery_cb(self, battery_data):
+        self.battery_msg.voltage = battery_data.voltage
+        self.battery_msg.temperature = battery_data.temperature
+        self.battery_msg.current = battery_data.current
+        self.battery_msg.percentage = battery_data.percentage
         self.battery_msg.present = True
-        self.battery_msg.header.stamp = clock.now().to_msg()
+        self.battery_msg.header.stamp = self.get_clock().now().to_msg()
+        # TODO use the stamp from the data
         self.battery_pub.publish(self.battery_msg)
 
-        self.odometer.update(left, right)
-        self.odom_pub.publish(self.odometer.odom_msg)
+    def update(self):
+        left, right = self.bot.getMotors()
+        velx, vely = self.cmd_vel
+        # TODO send cmd_vels
+        self.bot.setMotors(velx, vely, max(abs(velx), abs(vely)))
 
     def cmd_vel_cb(self, msg: Twist):
         # TODO move control knowledge to the driver?
