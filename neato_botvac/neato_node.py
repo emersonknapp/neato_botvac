@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from math import cos, nan, pi, sin
+from math import cos, pi, sin
 import threading
 
 from geometry_msgs.msg import (
@@ -34,7 +34,6 @@ from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Header
 from tf2_msgs.msg import TFMessage
 
-from .neato_driver import Botvac
 from .neato_driver2 import (
     BotvacDriver,
     BotvacDriverCallbacks,

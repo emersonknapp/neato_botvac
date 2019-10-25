@@ -210,16 +210,6 @@ def main():
         # driver.requestBattery()
         driver.requestScan()
         time.sleep(1)
-    # ser = serial.serial_for_url('/dev/ttyACM0', baudrate=115200, timeout=1)
-    # state = {}
-    #
-    # def getreader():
-    #     return ResponseReader(state)
-    #
-    # with ReaderThread(ser, getreader) as protocol:
-    #     while 1:
-    #         protocol.write_line('getcharger')
-    #         time.sleep(0.2)
 
 
 if __name__ == '__main__':
