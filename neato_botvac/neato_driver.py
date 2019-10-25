@@ -60,6 +60,8 @@ class BotvacDriverCallbacks(NamedTuple):
 
 
 class ResponseReader(LineReader):
+    """Receive response lines from the botvac and interpret them as structured data."""
+
     def __init__(self, callbacks, *args, **kwargs):
         super(ResponseReader, self).__init__(*args, **kwargs)
         self.current_stamp = time.time()
@@ -140,6 +142,8 @@ class ResponseReader(LineReader):
 
 
 class BotvacDriver:
+    """Interface to the mobile base and its sensors."""
+
     def __init__(
         self,
         port: str = '/dev/ttyACM0',
