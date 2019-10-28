@@ -204,9 +204,7 @@ class NeatoNode(Node):
 
     def send_cmd_vel(self):
         """Send the current velocity command to the base, watching out for stale data."""
-        print('Sending cmd vel')
         if (self.get_clock().now() - self.last_cmd_vel) > self.cmd_vel_timeout:
-            print('watchdog triggered, setting to 0')
             self.cmd_vel = (0, 0)
 
         velx, vely = self.cmd_vel

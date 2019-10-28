@@ -79,8 +79,9 @@ class ResponseReader(LineReader):
 
     def interpret(self, lines):
         if len(lines) < 3:
-            print('This command is too short!')
+            # This is an echo of a command we sent that has no data
             return
+
         cmd = lines[0].strip('\x1a').split()[0]
         fields = lines[1].split(',')
 
@@ -153,6 +154,7 @@ class BotvacDriver:
         self._base_width = 240  # mm
         self._max_speed = 300  # mm/s
         self._callbacks = callbacks
+        self._stopped = False  # if the robot should not be moving
 
         self._port = serial.Serial(port, baud, timeout=1)
         self._reader = ReaderThread(self._port, self._get_reader)
@@ -190,9 +192,27 @@ class BotvacDriver:
     def _setLDS(self, on: bool) -> None:
         self._protocol.write_line('setldsrotation {}'.format(_boolstr(on)))
 
-    def motorCommand(self, left_dist: int, right_dist: int, speed: int) -> None:
-        """Set the speed of the left and right wheel motors, in mm/s."""
-        pass
+    def setMotors(self, left_dist: int, right_dist: int, speed: int) -> None:
+        """Set motors, distance left & right + speed."""
+        """
+        The following is a work-around for a bug in the Neato API. The bug is that the
+        robot won't stop instantly if a 0-velocity command is sent - the robot
+        could continue moving for up to a second. To work around this bug, the
+        first time a 0-velocity is sent in, a velocity of 1,1,1 is sent. Then,
+        the zero is sent. This effectively causes the robot to stop instantly.
+        """
+        if (int(left_dist) == 0 and int(right_dist) == 0 and int(speed) == 0):
+            if (not self._stopped):
+                self._stopped = True
+                left_dist = 1
+                right_dist = 1
+                speed = 1
+        else:
+            self._stopped = False
+
+        self._protocol.write_line(
+            'setmotor lwheeldist {} rwheeldist {} speed {}'.format(
+                left_dist, right_dist, speed))
 
     def requestEncoders(self):
         """Send a request for the latest motor encoder status."""
