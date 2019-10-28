@@ -12,8 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from math import cos, nan, pi, sin
-import signal
+from math import cos, pi, sin
 
 from geometry_msgs.msg import (
     Point,
@@ -28,13 +27,17 @@ from geometry_msgs.msg import (
 )
 from nav_msgs.msg import Odometry
 import rclpy
+from rclpy.duration import Duration
 from rclpy.node import Node
 from sensor_msgs.msg import BatteryState
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Header
 from tf2_msgs.msg import TFMessage
 
-from .neato_driver import Botvac
+from .neato_driver import (
+    BotvacDriver,
+    BotvacDriverCallbacks,
+)
 
 
 def nano_to_sec(nanos):
@@ -46,6 +49,8 @@ def deg_to_rad(deg):
 
 
 class Odometer:
+    """Utility to accumulate encoder readings and produce a resulting transform."""
+
     def __init__(self, clock, base_width):
         self.clock = clock
         self.base_width = base_width
@@ -109,13 +114,18 @@ class NeatoNode(Node):
 
     def __init__(self):
         super(NeatoNode, self).__init__('neato_botvac')
-        self.bot = Botvac('/dev/ttyACM0')
+        self.bot = BotvacDriver('/dev/ttyACM0', callbacks=BotvacDriverCallbacks(
+            encoders=self.encoders_cb,
+            battery=self.battery_cb,
+            scan=self.scan_cb))
         self.scan_pub = self.create_publisher(LaserScan, 'scan', 10)
         self.battery_pub = self.create_publisher(BatteryState, 'battery', 2)
         self.odom_pub = self.create_publisher(Odometry, 'odom', 10)
         self.tf_pub = self.create_publisher(TFMessage, 'tf', 10)
 
         self.cmd_vel = (0, 0)
+        self.last_cmd_vel = self.get_clock().now()
+        self.cmd_vel_timeout = Duration(seconds=0.2)
         self.cmd_sub = self.create_subscription(Twist, 'cmd_vel', self.cmd_vel_cb, 10)
         self.scan_msg = LaserScan(
             angle_min=0.0,
@@ -127,56 +137,61 @@ class NeatoNode(Node):
             range_max=5.0)
         self.scan_msg.header.frame_id = 'scan'
         self.battery_msg = BatteryState()
-        self.odometer = Odometer(self.get_clock(), self.bot.base_width)
-
-        self.scan_timer = self.create_timer(0.2, self.update)
-        self.tf_timer = self.create_timer(0.01, self.pub_tf)
-
-    def pub_tf(self):
-        now = self.get_clock().now().to_msg()
-        odom_to_base_link_tf = TransformStamped(
-            header=Header(stamp=now, frame_id='odom'),
-            child_frame_id='base_link',
-            transform=self.odometer.transform_msg)
-        base_link_to_scan_tf = TransformStamped(
-            header=Header(stamp=now, frame_id='base_link'),
+        self.odom_to_base_link_tf = TransformStamped(
+            header=Header(frame_id='odom'),
+            child_frame_id='base_link')
+        self.base_link_to_scan_tf = TransformStamped(
+            header=Header(frame_id='base_link'),
             child_frame_id='scan',
             transform=Transform(
                 translation=Vector3(x=0., y=0., z=0.),
                 rotation=Quaternion(x=0., y=0., z=0., w=1.),
             ))
+        self.odometer = Odometer(self.get_clock(), self.bot.base_width)
+
+        self.tf_timer = self.create_timer(0.025, self.pub_tf)
+        self.scan_timer = self.create_timer(0.2, self.bot.requestScan)
+        self.battery_timer = self.create_timer(1, self.bot.requestBattery)
+        self.encoder_timer = self.create_timer(0.1, self.bot.requestEncoders)
+        self.send_cmd_timer = self.create_timer(0.1, self.send_cmd_vel)
+
+    def pub_tf(self):
+        """Publish my currently calculated owned TF frames."""
+        now = self.get_clock().now().to_msg()
+        self.odom_to_base_link_tf.header.stamp = now
+        self.odom_to_base_link_tf.transform = self.odometer.transform_msg
+        self.base_link_to_scan_tf.header.stamp = now
         self.tf_pub.publish(TFMessage(transforms=[
-            odom_to_base_link_tf,
-            base_link_to_scan_tf,
+            self.odom_to_base_link_tf,
+            self.base_link_to_scan_tf,
         ]))
 
-    def update(self):
-        clock = self.get_clock()
-        left, right = self.bot.getMotors()
-        velx, vely = self.cmd_vel
-        self.bot.setMotors(velx, vely, max(abs(velx), abs(vely)))
-
-        # Request all needed info
-        self.bot.getCharger()
-        self.bot.requestScan()
-
-        # Publish messages
-        self.scan_msg.ranges = self.bot.getScanRanges()
-        self.scan_msg.header.stamp = clock.now().to_msg()
+    def scan_cb(self, scan_data):
+        """Receive a complete lidar scan from the base and publish it."""
+        self.scan_msg.ranges = [r / 1000.0 for r in scan_data.ranges]
+        # TODO use the stamp from the data
+        self.scan_msg.header.stamp = self.get_clock().now().to_msg()
         self.scan_pub.publish(self.scan_msg)
 
-        self.battery_msg.voltage = self.bot.state.get('VBattV', nan)
-        self.battery_msg.temperature = self.bot.state.get('BattTempCAvg', nan)
-        self.battery_msg.current = self.bot.state.get('Discharge_mAH', nan)
-        self.battery_msg.percentage = self.bot.state.get('FuelPercent', nan)
-        self.battery_msg.present = True
-        self.battery_msg.header.stamp = clock.now().to_msg()
-        self.battery_pub.publish(self.battery_msg)
-
-        self.odometer.update(left, right)
+    def encoders_cb(self, encoders_data):
+        """Receive and publish latest wheel encoder data."""
+        self.odometer.update(encoders_data.left, encoders_data.right)
+        # TODO use the stamp from the data
         self.odom_pub.publish(self.odometer.odom_msg)
 
+    def battery_cb(self, battery_data):
+        """Receive and publish latest battery data."""
+        self.battery_msg.voltage = battery_data.voltage
+        self.battery_msg.temperature = battery_data.temperature
+        self.battery_msg.current = battery_data.current
+        self.battery_msg.percentage = battery_data.percentage
+        self.battery_msg.present = True
+        self.battery_msg.header.stamp = self.get_clock().now().to_msg()
+        # TODO use the stamp from the data
+        self.battery_pub.publish(self.battery_msg)
+
     def cmd_vel_cb(self, msg: Twist):
+        """Receive a velocity command and interpret it for sending to the base."""
         # TODO move control knowledge to the driver?
         x = msg.linear.x * 1000
         theta = msg.angular.z * self.bot.base_width / 2
@@ -185,20 +200,23 @@ class NeatoNode(Node):
             x = x * self.bot.max_speed / k
             theta = theta * self.bot.max_speed / k
         self.cmd_vel = (int(x - theta), int(x + theta))
+        self.last_cmd_vel = self.get_clock().now()
 
-    def shutdown(self, *args):
-        self.scan_timer.cancel()
-        self.bot.shutdown()
+    def send_cmd_vel(self):
+        """Send the current velocity command to the base, watching out for stale data."""
+        print('Sending cmd vel')
+        if (self.get_clock().now() - self.last_cmd_vel) > self.cmd_vel_timeout:
+            print('watchdog triggered, setting to 0')
+            self.cmd_vel = (0, 0)
+
+        velx, vely = self.cmd_vel
+        # TODO send cmd_vels
+        self.bot.setMotors(velx, vely, max(abs(velx), abs(vely)))
 
 
 def main():
     rclpy.init()
     node = NeatoNode()
-    # TODO this shutdown is not working correctly, we're getting caught up in get_scan
-    signal.signal(
-        signal.SIGINT,
-        lambda unused_signal, unused_frame: node.shutdown()
-    )
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
