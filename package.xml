@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
-<package format="3">
+<package format="2">
   <name>neato_botvac</name>
   <version>0.0.0</version>
   <description>ROS2 mobile base I/O for a Neato Botvac.</description>
@@ -15,12 +15,13 @@
   <depend>joy_driver</depend>
   <depend>teleop_twist_joy</depend>
 
-  <run_depend>neato_description</run_depend>
+  <exec_depend>neato_description</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_mypy</test_depend>
   <test_depend>ament_pep257</test_depend>
+  <test_depend>ament_xmllint</test_depend>
   <test_depend>python3-pytest</test_depend>
 
   <export>
