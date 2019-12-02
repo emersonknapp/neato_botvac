@@ -162,7 +162,7 @@ class NeatoNode(Node):
             scan_time=0.,
             range_min=0.2,
             range_max=5.0)
-        self.scan_msg.header.frame_id = 'scan'
+        self.scan_msg.header.frame_id = 'laser_link'
         self.battery_msg = BatteryState()
         self.battery_msg.header.frame_id = 'base_link'
         self.imu_msg = Imu(
@@ -172,16 +172,9 @@ class NeatoNode(Node):
         )
         self.imu_msg.header.frame_id = 'base_link'
 
-        self.odom_to_base_link_tf = TransformStamped(
+        self.odom_to_base_tf = TransformStamped(
             header=Header(frame_id='odom'),
             child_frame_id='base_link')
-        self.base_link_to_scan_tf = TransformStamped(
-            header=Header(frame_id='base_link'),
-            child_frame_id='scan',
-            transform=Transform(
-                translation=Vector3(x=0., y=0., z=0.),
-                rotation=Quaternion(x=0., y=0., z=0., w=1.),
-            ))
         self.odometer = Odometer(self.get_clock(), self.bot.base_width)
 
         self.tf_timer = self.create_timer(0.025, self.pub_tf)
@@ -194,13 +187,9 @@ class NeatoNode(Node):
     def pub_tf(self) -> None:
         """Publish my currently calculated owned TF frames."""
         now = self.get_clock().now().to_msg()
-        self.odom_to_base_link_tf.header.stamp = now
-        self.odom_to_base_link_tf.transform = self.odometer.transform_msg
-        self.base_link_to_scan_tf.header.stamp = now
-        self.tf_pub.publish(TFMessage(transforms=[
-            self.odom_to_base_link_tf,
-            self.base_link_to_scan_tf,
-        ]))
+        self.odom_to_base_tf.header.stamp = now
+        self.odom_to_base_tf.transform = self.odometer.transform_msg
+        self.tf_pub.publish(TFMessage(transforms=[self.odom_to_base_tf]))
 
     def scan_cb(self, scan_data: Scan) -> None:
         """Receive a complete lidar scan from the base and publish it."""

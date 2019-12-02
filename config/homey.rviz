@@ -10,10 +10,10 @@ Panels:
         - /TF1
         - /TF1/Frames1
         - /TF1/Tree1
+        - /RobotModel1
         - /Odometry1
         - /Odometry1/Shape1
         - /Imu1
-        - /Imu1/Status1
       Splitter Ratio: 0.5
     Tree Height: 1652
   - Class: rviz_common/Selection
@@ -87,13 +87,33 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
+        base_footprint:
+          Value: true
         base_link:
+          Value: true
+        caster_back_left_link:
+          Value: true
+        caster_back_right_link:
+          Value: true
+        caster_front_left_link:
+          Value: true
+        caster_front_right_link:
+          Value: true
+        cliff_sensor_left_link:
+          Value: true
+        cliff_sensor_right_link:
+          Value: true
+        imu_link:
+          Value: true
+        laser_link:
           Value: true
         odom:
           Value: true
-        scan:
+        wheel_left_link:
           Value: true
-      Marker Scale: 1
+        wheel_right_link:
+          Value: true
+      Marker Scale: 0.30000001192092896
       Name: TF
       Show Arrows: true
       Show Axes: true
@@ -101,11 +121,31 @@ Visualization Manager:
       Tree:
         odom:
           base_link:
-            scan:
+            base_footprint:
+              {}
+            caster_back_left_link:
+              {}
+            caster_back_right_link:
+              {}
+            caster_front_left_link:
+              {}
+            caster_front_right_link:
+              {}
+            cliff_sensor_left_link:
+              {}
+            cliff_sensor_right_link:
+              {}
+            imu_link:
+              {}
+            laser_link:
+              {}
+            wheel_left_link:
+              {}
+            wheel_right_link:
               {}
       Update Interval: 0
       Value: true
-    - Alpha: 1
+    - Alpha: 0.699999988079071
       Class: rviz_default_plugins/RobotModel
       Collision Enabled: false
       Description File: ""
@@ -115,14 +155,69 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: ""
+        Value: /robot_description
       Enabled: true
       Links:
         All Links Enabled: true
         Expand Joint Details: false
         Expand Link Details: false
         Expand Tree: false
-        Link Tree Style: ""
+        Link Tree Style: Links in Alphabetic Order
+        base_footprint:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        caster_back_left_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        caster_back_right_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        caster_front_left_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        caster_front_right_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        cliff_sensor_left_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        cliff_sensor_right_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        imu_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        laser_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        wheel_left_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        wheel_right_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
       Name: RobotModel
       TF Prefix: ""
       Update Interval: 0
@@ -166,12 +261,12 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /odom
       Value: true
-    - Alpha: 1
+    - Alpha: 0.699999988079071
       Class: rviz_plugin_tutorials/Imu
       Color: 204; 51; 204
       Enabled: true
       Name: Imu
-      Scale: 0.05000000074505806
+      Scale: 0.02500000037252903
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -220,7 +315,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 9.126058578491211
+      Distance: 3.2728841304779053
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -235,10 +330,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.785398006439209
+      Pitch: 0.8403984904289246
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.785398006439209
+      Yaw: 3.993576765060425
     Saved: ~
 Window Geometry:
   Displays:
