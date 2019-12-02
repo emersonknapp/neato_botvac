@@ -23,6 +23,14 @@ from typing import Optional
 import serial
 from serial.threaded import LineReader, ReaderThread
 
+CMD_ACCELEROMETER = 'getaccel'
+# CMD_ANALOG_SENSORS = 'getanalogsensors'
+# CMD_BUTTONS = 'getbuttons'
+CMD_BATTERY = 'getcharger'
+# CMD_DIGITAL_SENSORS = 'getdigitalsensors'
+CMD_LASER = 'getldsscan'
+CMD_MOTORS = 'getmotors'
+
 
 def _boolstr(val: bool) -> str:
     return 'on' if val else 'off'
@@ -33,6 +41,13 @@ class Encoders(NamedTuple):
     left: int
     right: int
 
+    @classmethod
+    def from_state(cls, stamp: float, state: dict):
+        return Encoders(
+            stamp=stamp,
+            left=int(state['LeftWheel_PositionInMM']),
+            right=int(state['RightWheel_PositionInMM']))
+
 
 class BatteryStatus(NamedTuple):
     stamp: float
@@ -40,6 +55,15 @@ class BatteryStatus(NamedTuple):
     temperature: float
     current: float
     percentage: int
+
+    @classmethod
+    def from_state(cls, stamp: float, state: dict):
+        return BatteryStatus(
+            stamp=stamp,
+            voltage=float(state['VBattV']),
+            temperature=float(state['BattTempCAvg']),
+            current=float(state['Discharge_mAH']),
+            percentage=float(state['FuelPercent']))
 
 
 class Scan(NamedTuple):
@@ -53,10 +77,32 @@ class Scan(NamedTuple):
     ranges: List[int]
 
 
+class Accelerometer(NamedTuple):
+    stamp: float
+    pitch_degrees: float
+    roll_degrees: float
+    x_g: float
+    y_g: float
+    z_g: float
+    sum_g: float
+
+    @classmethod
+    def from_state(cls, stamp: float, state: dict):
+        return Accelerometer(
+            stamp=stamp,
+            pitch_degrees=float(state['PitchInDegrees']),
+            roll_degrees=float(state['RollInDegrees']),
+            x_g=float(state['XInG']),
+            y_g=float(state['YInG']),
+            z_g=float(state['ZInG']),
+            sum_g=float(state['SumInG']))
+
+
 class BotvacDriverCallbacks(NamedTuple):
     encoders: Optional[Callable[[Encoders], None]]
     battery: Optional[Callable[[BatteryStatus], None]]
     scan: Optional[Callable[[Scan], None]]
+    accel: Optional[Callable[[Accelerometer], None]]
 
 
 class ResponseReader(LineReader):
@@ -85,13 +131,12 @@ class ResponseReader(LineReader):
         cmd = lines[0].strip('\x1a').split()[0]
         fields = lines[1].split(',')
 
-        if cmd == 'getldsscan':
+        if cmd == CMD_LASER and self.callbacks.scan:
             result = Scan(
                 stamp=self.current_stamp,
                 ranges=[int(line.split(',')[1]) for line in lines[2:-1]]
             )
-            if self.callbacks.scan:
-                self.callbacks.scan(result)
+            self.callbacks.scan(result)
             return
 
         if len(fields) > 2:
@@ -106,30 +151,22 @@ class ResponseReader(LineReader):
             else:
                 state[tokens[0]] = tokens[1]
 
-        if cmd == 'getmotors':
-            result = Encoders(
-                stamp=self.current_stamp,
-                left=int(state['LeftWheel_PositionInMM']),
-                right=int(state['RightWheel_PositionInMM']))
-            if self.callbacks.encoders:
-                self.callbacks.encoders(result)
+        if cmd == CMD_MOTORS and self.callbacks.encoders:
+            self.callbacks.encoders(Encoders.from_state(self.current_stamp, state))
             return
-        elif cmd == 'getcharger':
-            result = BatteryStatus(
-                stamp=self.current_stamp,
-                voltage=float(state['VBattV']),
-                temperature=float(state['BattTempCAvg']),
-                current=float(state['Discharge_mAH']),
-                percentage=float(state['FuelPercent']))
-            if self.callbacks.battery:
-                self.callbacks.battery(result)
+        elif cmd == CMD_BATTERY and self.callbacks.battery:
+            self.callbacks.battery(BatteryStatus.from_state(self.current_stamp, state))
+            return
+        elif cmd == CMD_ACCELEROMETER and self.callbacks.accel:
+            data = Accelerometer.from_state(self.current_stamp, state)
+            self.callbacks.accel(data)
             return
 
     def _command_complete(self):
         try:
             self.interpret(self.current_lines)
         except Exception as e:
-            print('Interpreting failed: {}'.format(e))
+            print('Interpreting failed for cmd {}: {}'.format(self.current_lines[0], e))
         # clean up
         self.current_lines = []
 
@@ -216,15 +253,19 @@ class BotvacDriver:
 
     def requestEncoders(self):
         """Send a request for the latest motor encoder status."""
-        self._protocol.write_line('getmotors')
+        self._protocol.write_line(CMD_MOTORS)
 
     def requestBattery(self) -> None:
         """Send a request for latest battery status."""
-        self._protocol.write_line('getcharger')
+        self._protocol.write_line(CMD_BATTERY)
 
     def requestScan(self) -> None:
         """Send a request for latest LIDAR scan."""
-        self._protocol.write_line('getldsscan')
+        self._protocol.write_line(CMD_LASER)
+
+    def requestAccel(self) -> None:
+        """Send a request for the latest accelerometer reading."""
+        self._protocol.write_line(CMD_ACCELEROMETER)
 
 
 def main():

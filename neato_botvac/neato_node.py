@@ -30,22 +30,47 @@ import rclpy
 from rclpy.duration import Duration
 from rclpy.node import Node
 from sensor_msgs.msg import BatteryState
+from sensor_msgs.msg import Imu
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Header
 from tf2_msgs.msg import TFMessage
 
-from .neato_driver import (
-    BotvacDriver,
-    BotvacDriverCallbacks,
-)
+from .neato_driver import Accelerometer
+from .neato_driver import BatteryStatus
+from .neato_driver import BotvacDriver
+from .neato_driver import BotvacDriverCallbacks
+from .neato_driver import Encoders
+from .neato_driver import Scan
+
+GS_TO_ACCEL = 9.80665
 
 
-def nano_to_sec(nanos):
+def gs_to_accel(gs: float) -> float:
+    """Convert gravities to meters per second squared."""
+    return gs * GS_TO_ACCEL
+
+
+def nano_to_sec(nanos: int) -> float:
     return nanos / (10 ** 9)
 
 
-def deg_to_rad(deg):
+def deg_to_rad(deg: float) -> float:
     return deg * pi / 180.0
+
+
+def quaternion_from_euler(roll: float, pitch: float, yaw: float) -> Quaternion:
+    cy = cos(yaw * 0.5)
+    sy = sin(yaw * 0.5)
+    cp = cos(pitch * 0.5)
+    sp = sin(pitch * 0.5)
+    cr = cos(roll * 0.5)
+    sr = sin(roll * 0.5)
+
+    return Quaternion(
+        x=cy * cp * cr + sy * sp * sr,
+        y=cy * cp * sr - sy * sp * cr,
+        z=sy * cp * sr + cy * sp * cr,
+        w=sy * cp * cr - cy * sp * sr)
 
 
 class Odometer:
@@ -117,11 +142,13 @@ class NeatoNode(Node):
         self.bot = BotvacDriver('/dev/ttyACM0', callbacks=BotvacDriverCallbacks(
             encoders=self.encoders_cb,
             battery=self.battery_cb,
+            accel=self.accel_cb,
             scan=self.scan_cb))
         self.scan_pub = self.create_publisher(LaserScan, 'scan', 10)
         self.battery_pub = self.create_publisher(BatteryState, 'battery', 2)
         self.odom_pub = self.create_publisher(Odometry, 'odom', 10)
         self.tf_pub = self.create_publisher(TFMessage, 'tf', 10)
+        self.imu_pub = self.create_publisher(Imu, 'imu', 10)
 
         self.cmd_vel = (0, 0)
         self.last_cmd_vel = self.get_clock().now()
@@ -137,6 +164,14 @@ class NeatoNode(Node):
             range_max=5.0)
         self.scan_msg.header.frame_id = 'scan'
         self.battery_msg = BatteryState()
+        self.battery_msg.header.frame_id = 'base_link'
+        self.imu_msg = Imu(
+            orientation_covariance=[0, 0, 0, 0, 0, 0, 0, 0, 0],
+            angular_velocity_covariance=[-1, 0, 0, 0, 0, 0, 0, 0, 0],
+            linear_acceleration_covariance=[0, 0, 0, 0, 0, 0, 0, 0, 0],
+        )
+        self.imu_msg.header.frame_id = 'base_link'
+
         self.odom_to_base_link_tf = TransformStamped(
             header=Header(frame_id='odom'),
             child_frame_id='base_link')
@@ -153,9 +188,10 @@ class NeatoNode(Node):
         self.scan_timer = self.create_timer(0.2, self.bot.requestScan)
         self.battery_timer = self.create_timer(1, self.bot.requestBattery)
         self.encoder_timer = self.create_timer(0.1, self.bot.requestEncoders)
+        self.accel_timer = self.create_timer(0.1, self.bot.requestAccel)
         self.send_cmd_timer = self.create_timer(0.1, self.send_cmd_vel)
 
-    def pub_tf(self):
+    def pub_tf(self) -> None:
         """Publish my currently calculated owned TF frames."""
         now = self.get_clock().now().to_msg()
         self.odom_to_base_link_tf.header.stamp = now
@@ -166,20 +202,20 @@ class NeatoNode(Node):
             self.base_link_to_scan_tf,
         ]))
 
-    def scan_cb(self, scan_data):
+    def scan_cb(self, scan_data: Scan) -> None:
         """Receive a complete lidar scan from the base and publish it."""
         self.scan_msg.ranges = [r / 1000.0 for r in scan_data.ranges]
         # TODO use the stamp from the data
         self.scan_msg.header.stamp = self.get_clock().now().to_msg()
         self.scan_pub.publish(self.scan_msg)
 
-    def encoders_cb(self, encoders_data):
+    def encoders_cb(self, encoders_data: Encoders) -> None:
         """Receive and publish latest wheel encoder data."""
         self.odometer.update(encoders_data.left, encoders_data.right)
         # TODO use the stamp from the data
         self.odom_pub.publish(self.odometer.odom_msg)
 
-    def battery_cb(self, battery_data):
+    def battery_cb(self, battery_data: BatteryStatus) -> None:
         """Receive and publish latest battery data."""
         self.battery_msg.voltage = battery_data.voltage
         self.battery_msg.temperature = battery_data.temperature
@@ -190,7 +226,19 @@ class NeatoNode(Node):
         # TODO use the stamp from the data
         self.battery_pub.publish(self.battery_msg)
 
-    def cmd_vel_cb(self, msg: Twist):
+    def accel_cb(self, accel_data: Accelerometer) -> None:
+        self.imu_msg.orientation = quaternion_from_euler(
+            deg_to_rad(accel_data.pitch_degrees),
+            deg_to_rad(accel_data.roll_degrees),
+            0)
+        self.imu_msg.linear_acceleration = Vector3(
+            x=gs_to_accel(accel_data.x_g),
+            y=gs_to_accel(accel_data.y_g),
+            z=gs_to_accel(accel_data.z_g))
+        self.imu_msg.header.stamp = self.get_clock().now().to_msg()
+        self.imu_pub.publish(self.imu_msg)
+
+    def cmd_vel_cb(self, msg: Twist) -> None:
         """Receive a velocity command and interpret it for sending to the base."""
         # TODO move control knowledge to the driver?
         x = msg.linear.x * 1000
@@ -202,7 +250,7 @@ class NeatoNode(Node):
         self.cmd_vel = (int(x - theta), int(x + theta))
         self.last_cmd_vel = self.get_clock().now()
 
-    def send_cmd_vel(self):
+    def send_cmd_vel(self) -> None:
         """Send the current velocity command to the base, watching out for stale data."""
         if (self.get_clock().now() - self.last_cmd_vel) > self.cmd_vel_timeout:
             self.cmd_vel = (0, 0)
