@@ -221,9 +221,9 @@ class NeatoNode(Node):
             deg_to_rad(accel_data.roll_degrees),
             0)
         self.imu_msg.linear_acceleration = Vector3(
-            x=gs_to_accel(accel_data.x_g),
-            y=gs_to_accel(accel_data.y_g),
-            z=gs_to_accel(accel_data.z_g))
+            x=-gs_to_accel(accel_data.x_g),
+            y=-gs_to_accel(accel_data.y_g),
+            z=-gs_to_accel(accel_data.z_g))
         self.imu_msg.header.stamp = self.get_clock().now().to_msg()
         self.imu_pub.publish(self.imu_msg)
 

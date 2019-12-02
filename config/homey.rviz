@@ -7,6 +7,8 @@ Panels:
         - /Global Options1
         - /Status1
         - /LaserScan1
+        - /LaserScan1/Status1
+        - /LaserScan1/Topic1
         - /TF1
         - /TF1/Frames1
         - /TF1/Tree1
@@ -14,6 +16,8 @@ Panels:
         - /Odometry1
         - /Odometry1/Shape1
         - /Imu1
+        - /Imu1/Status1
+        - /Imu1/Topic1
       Splitter Ratio: 0.5
     Tree Height: 1652
   - Class: rviz_common/Selection
@@ -77,7 +81,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /scan
       Use Fixed Frame: true
       Use rainbow: true
@@ -107,8 +111,6 @@ Visualization Manager:
           Value: true
         laser_link:
           Value: true
-        odom:
-          Value: true
         wheel_left_link:
           Value: true
         wheel_right_link:
@@ -119,10 +121,8 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        odom:
+        base_footprint:
           base_link:
-            base_footprint:
-              {}
             caster_back_left_link:
               {}
             caster_back_right_link:
@@ -258,7 +258,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /odom
       Value: true
     - Alpha: 0.699999988079071
@@ -271,13 +271,13 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /imu
       Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
-    Fixed Frame: odom
+    Fixed Frame: base_link
     Frame Rate: 30
   Name: root
   Tools:
@@ -315,7 +315,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 3.2728841304779053
+      Distance: 3.324352264404297
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -330,10 +330,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.8403984904289246
+      Pitch: 0.7952035069465637
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.993576765060425
+      Yaw: 5.811748504638672
     Saved: ~
 Window Geometry:
   Displays:
