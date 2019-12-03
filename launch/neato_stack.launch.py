@@ -30,6 +30,9 @@ def generate_launch_description():
     DeclareLaunchArgument(
         'base_driver', default_value='true',
         description='Set to "false" to skip launching the base driver')
+    DeclareLaunchArgument(
+        'viz', default_value='false',
+        description='Launch rviz?')
 
     parameters_file_dir = pathlib.Path(__file__).resolve().parent.parent
     parameters_file_path = parameters_file_dir / 'config' / 'teleop_xbox.config.yaml'
@@ -39,6 +42,13 @@ def generate_launch_description():
         'launch',
         'description.launch.py'
     )
+
+    rviz_config_path = os.path.join(
+        get_package_share_directory('neato_botvac'),
+        'config',
+        'homey.rviz'
+    )
+    print(rviz_config_path)
 
     return LaunchDescription([
         Node(
@@ -60,6 +70,14 @@ def generate_launch_description():
             node_name='joy_interpreter',
             parameters=[parameters_file_path],
             output='screen',
+        ),
+        Node(
+            package='rviz2',
+            node_executable='rviz2',
+            node_name='rviz2',
+            arguments=['-d', rviz_config_path],
+            output='screen',
+            condition=IfCondition(LaunchConfiguration('viz')),
         ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(description_launch_path)
