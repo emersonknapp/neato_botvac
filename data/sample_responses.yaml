@@ -1,0 +1,507 @@
+help
+Help - Without any argument, this prints a list of all possible cmds.
+With a command name, it prints the help for that particular command
+Clean - Starts a cleaning by simulating press of start button.
+ClearFiles - Erases Black Box, and other Logs
+DiagTest - Executes different test modes. Once set, press Start button to engage. (Test modes are mutually exclusive.)
+GetAccel - Get the Accelerometer readings.
+GetAnalogSensors - Get the A2D readings for the analog sensors.
+GetButtons - Get the state of the UI Buttons.
+GetCalInfo - Prints out the cal info from the System Control Block.
+GetCharger - Get the diagnostic data for the charging system.
+GetDigitalSensors - Get the state of the digital sensors.
+GetErr - Get Error Message.
+GetLanguage - Gets the UI Language from the robot.
+GetLDSScan - Get scan packet from LDS.
+GetMotors - Get the diagnostic data for the motors.
+GetSchedule - Get the Cleaning Schedule. (24 hour clock format)
+GetTime - Get Current Scheduler Time.
+GetVersion - Get the version information for the system software and hardware.
+GetWarranty - Get the warranty data.
+PlaySound - Play the specified sound in the robot.
+SetFuelGauge - Set Fuel Gauge Level.
+SetMotor - Sets the specified motor to run in a direction at a requested speed. (TestMode Only)
+SetTime - Sets the current day, hour, and minute for the scheduler clock.
+SetLanguage - Sets the UI Language for the robot.
+SetLED - Sets the specified LED to on,off,blink, or dim. (TestMode Only)
+SetIEC - Sets the IEC Cleaning Test parameters
+SetLCD - Sets the LCD to the specified display. (TestMode Only)
+SetLDSRotation - Sets LDS rotation on or off. Can only be run in TestMode.
+SetSchedule - Modify Cleaning Schedule.
+SetSystemMode - Set the operation mode of the robot. (TestMode Only)
+TestMode - Sets TestMode on or off. Some commands can only be run in TestMode.
+Upload - Uploads new program to the robot.
+SetButton - Simulates a button press.
+SetBatteryTest - Sets California Energy Commission 10-CFR-430 Battery Charging System Test mode.
+
+getaccel
+Label,Value
+PitchInDegrees, -0.43
+RollInDegrees,  2.60
+XInG, 0.007
+YInG, 0.044
+ZInG, 0.963
+SumInG, 0.964
+
+getanalogsensors
+SensorName,Unit,Value
+BatteryVoltage,mV,12980,
+BatteryCurrent,mA,-298,
+BatteryTemperature,mC,27832,
+ExternalVoltage,mV,832,
+AccelerometerX,mG,2,
+AccelerometerY,mG,39,
+AccelerometerZ,mG,973,
+VacuumCurrent,mA,0,
+SideBrushCurrent,mA,0,
+MagSensorLeft,VAL,0,
+MagSensorRight,VAL,0,
+WallSensor,mm,99,
+DropSensorLeft,mm,0,
+DropSensorRight,mm,0,
+
+getbuttons
+Button Name,Pressed
+BTN_SOFT_KEY,0
+BTN_SCROLL_UP,0
+BTN_START,0
+BTN_BACK,0
+BTN_SCROLL_DOWN,0
+BTN_SPOT,0
+
+getcharger
+Label,Value
+FuelPercent,84
+BatteryOverTemp,0
+ChargingActive,0
+ChargingEnabled,0
+ConfidentOnFuel,1
+OnReservedFuel,0
+EmptyFuel,0
+BatteryFailure,0
+ExtPwrPresent,0
+ThermistorPresent,1
+BattTempCAvg,27
+VBattV,12.98
+VExtV,0.81
+Charger_mAH,0
+Discharge_mAH,292
+
+getdigitalsensors
+Digital Sensor Name, Value
+SNSR_DC_JACK_IS_IN,0
+SNSR_DUSTBIN_IS_IN,1
+SNSR_LEFT_WHEEL_EXTENDED,0
+SNSR_RIGHT_WHEEL_EXTENDED,0
+LSIDEBIT,0
+LFRONTBIT,0
+LLDSBIT,0
+RSIDEBIT,0
+RFRONTBIT,0
+RLDSBIT,0
+
+<0x1a>getldsscan
+AngleInDegrees,DistInMM,Intensity,ErrorCodeHEX
+0,1255,393,0
+1,4318,20,0
+2,0,20,8021
+3,3874,6,0
+4,3240,9,0
+5,3130,10,0
+6,0,0,8035
+7,0,0,8035
+8,0,0,8035
+9,0,0,8035
+10,0,0,8025
+11,0,0,8035
+12,2213,99,0
+13,0,0,8002
+14,0,0,8035
+15,0,0,8035
+16,0,0,8035
+17,0,0,8035
+18,0,0,8025
+19,1791,26,0
+20,1400,35,0
+21,1360,245,0
+22,1367,221,0
+23,0,0,8035
+24,0,0,8035
+25,0,0,8035
+26,0,0,8035
+27,0,0,8035
+28,0,0,8035
+29,0,0,8035
+30,0,0,8025
+31,0,0,8035
+32,1275,18,0
+33,1229,42,0
+34,1199,76,0
+35,1174,93,0
+36,1111,87,0
+37,1124,18,0
+38,1065,29,0
+39,1049,10,0
+40,0,0,8035
+41,0,0,8035
+42,1094,10,0
+43,0,0,8035
+44,0,0,8002
+45,2309,56,0
+46,2273,68,0
+47,2226,68,0
+48,2197,68,0
+49,2164,72,0
+50,2120,75,0
+51,2107,76,0
+52,0,0,8035
+53,2038,42,0
+54,1695,63,0
+55,1669,145,0
+56,0,0,8035
+57,0,0,8035
+58,0,0,8035
+59,0,0,8035
+60,0,0,8025
+61,1582,178,0
+62,1549,102,0
+63,0,0,8035
+64,16660,128,0
+65,272,552,0
+66,16658,51,0
+67,1826,35,0
+68,1795,126,0
+69,1781,133,0
+70,1775,138,0
+71,1749,359,0
+72,1737,247,0
+73,1853,28,0
+74,2800,74,0
+75,2804,72,0
+76,2806,67,0
+77,2822,76,0
+78,2822,66,0
+79,2807,66,0
+80,2798,65,0
+81,0,0,8035
+82,2808,54,0
+83,2757,66,0
+84,2726,35,0
+85,0,0,8035
+86,0,0,8035
+87,0,0,8035
+88,0,0,8035
+89,0,0,8025
+90,0,0,8035
+91,0,0,8035
+92,0,0,8035
+93,0,0,8035
+94,0,0,8025
+95,373,225,0
+96,16746,52,0
+97,0,0,8035
+98,0,0,8035
+99,16720,101,0
+100,0,0,8025
+101,0,0,8035
+102,1721,68,0
+103,1760,137,0
+104,1762,140,0
+105,1751,99,0
+106,1720,68,0
+107,0,0,8035
+108,0,0,8035
+109,0,0,8035
+110,0,0,8035
+111,0,0,8025
+112,0,0,8035
+113,0,0,8035
+114,0,0,8035
+115,0,0,8035
+116,0,0,8025
+117,0,0,8035
+118,0,0,8035
+119,0,0,8035
+120,0,0,8035
+121,0,0,8025
+122,0,0,8021
+123,16536,214,0
+124,148,972,0
+125,145,1062,0
+126,141,891,0
+127,138,791,0
+128,136,666,0
+129,133,547,0
+130,0,0,8003
+131,0,0,8003
+132,0,0,8003
+133,0,0,8035
+134,0,0,8035
+135,0,0,8035
+136,0,0,8035
+137,0,0,8025
+138,0,0,8035
+139,0,0,8035
+140,0,0,8035
+141,0,0,8035
+142,0,0,8025
+143,0,0,8035
+144,0,0,8035
+145,0,0,8035
+146,0,0,8035
+147,0,0,8025
+148,0,0,8035
+149,0,0,8035
+150,0,0,8035
+151,0,0,8035
+152,0,0,8025
+153,0,0,8035
+154,0,0,8035
+155,0,0,8035
+156,0,0,8035
+157,0,0,8025
+158,0,0,8035
+159,0,0,8035
+160,0,0,8035
+161,0,0,8035
+162,0,0,8025
+163,0,0,8035
+164,0,0,8035
+165,0,0,8035
+166,0,0,8035
+167,0,0,8025
+168,0,0,8035
+169,0,0,8035
+170,0,0,8035
+171,0,0,8035
+172,0,0,8035
+173,0,0,8035
+174,0,0,8035
+175,0,0,8025
+176,0,0,8035
+177,0,0,8035
+178,0,0,8035
+179,0,0,8035
+180,0,0,8025
+181,0,0,8035
+182,0,0,8035
+183,0,0,8035
+184,0,0,8035
+185,0,0,8035
+186,0,0,8025
+187,0,0,8035
+188,0,0,8035
+189,0,0,8035
+190,0,0,8035
+191,0,0,8035
+192,0,0,8025
+193,0,0,8035
+194,0,0,8035
+195,0,0,8035
+196,0,0,8035
+197,0,0,8035
+198,0,0,8035
+199,0,0,8035
+200,0,0,8035
+201,0,0,8025
+202,0,0,8035
+203,0,0,8035
+204,0,0,8035
+205,0,0,8035
+206,0,0,8035
+207,0,0,8025
+208,0,0,8035
+209,0,0,8035
+210,0,0,8035
+211,0,0,8035
+212,0,0,8035
+213,0,0,8025
+214,0,0,8035
+215,0,0,8035
+216,0,0,8035
+217,0,0,8035
+218,0,0,8021
+219,0,0,8035
+220,0,0,8035
+221,0,0,8035
+222,0,0,8035
+223,0,0,8025
+224,0,0,8035
+225,0,0,8035
+226,0,0,8035
+227,2684,46,0
+228,0,0,8025
+229,2654,59,0
+230,2686,42,0
+231,2327,31,0
+232,2367,48,0
+233,2333,43,0
+234,2279,49,0
+235,2219,72,0
+236,2021,86,0
+237,1999,118,0
+238,2175,30,0
+239,0,0,8035
+240,0,0,8035
+241,0,0,8035
+242,0,0,8035
+243,0,0,8035
+244,0,0,8025
+245,0,0,8035
+246,0,0,8035
+247,0,0,8035
+248,0,0,8035
+249,0,0,8025
+250,0,0,8035
+251,0,0,8035
+252,2291,14,0
+253,2221,18,0
+254,2251,16,0
+255,2151,20,0
+256,2104,26,0
+257,2139,29,0
+258,2108,31,0
+259,2045,23,0
+260,0,0,8035
+261,0,0,8002
+262,2410,101,0
+263,2047,60,0
+264,2402,114,0
+265,2397,106,0
+266,0,106,8021
+267,2399,109,0
+268,2383,68,0
+269,0,0,8035
+270,2420,23,0
+271,623,84,0
+272,617,194,0
+273,2417,78,0
+274,2404,82,0
+275,2408,62,0
+276,2385,41,0
+277,2394,15,0
+278,0,0,8035
+279,0,0,8035
+280,0,0,8035
+281,0,0,8035
+282,0,0,8025
+283,0,0,8035
+284,0,0,8035
+285,16783,20,0
+286,0,0,8035
+287,0,0,8035
+288,1686,35,0
+289,0,0,8035
+290,1707,27,0
+291,1733,32,0
+292,1734,32,0
+293,0,0,8035
+294,0,0,8035
+295,0,0,8035
+296,0,0,8035
+297,0,0,8025
+298,0,0,8035
+299,2364,8,0
+300,2360,42,0
+301,2353,54,0
+302,2383,50,0
+303,2458,54,0
+304,2489,50,0
+305,2507,16,0
+306,2522,17,0
+307,2556,17,0
+308,2596,14,0
+309,2641,18,0
+310,2674,13,0
+311,2699,13,0
+312,2734,12,0
+313,2814,7,0
+314,0,0,8035
+315,0,0,8035
+316,0,0,8035
+317,3120,13,0
+318,0,0,8025
+319,0,0,8035
+320,0,0,8035
+321,0,0,8035
+322,0,0,8035
+323,0,0,8025
+324,0,0,8035
+325,0,0,8035
+326,0,0,8035
+327,0,0,8035
+328,0,0,8025
+329,0,0,8035
+330,0,0,8035
+331,0,0,8035
+332,0,0,8035
+333,0,0,8025
+334,0,0,8035
+335,0,0,8035
+336,0,0,8035
+337,0,0,8035
+338,0,0,8025
+339,0,0,8035
+340,0,0,8035
+341,0,0,8035
+342,0,0,8035
+343,0,0,8025
+344,0,0,8035
+345,0,0,8035
+346,0,0,8035
+347,0,0,8035
+348,0,0,8025
+349,0,0,8035
+350,0,0,8035
+351,4161,12,0
+352,0,0,8025
+353,4251,18,0
+354,4241,26,0
+355,4114,11,0
+356,4265,17,0
+357,4225,25,0
+358,0,0,8035
+359,1256,391,0
+ROTATION_SPEED,5.13
+
+
+getmotors
+Parameter,Value
+Brush_RPM,0
+Brush_mA,0
+Vacuum_RPM,0
+Vacuum_mA,0
+LeftWheel_RPM,0
+LeftWheel_Load%,0
+LeftWheel_PositionInMM,214
+LeftWheel_Speed,0
+RightWheel_RPM,0
+RightWheel_Load%,0
+RightWheel_PositionInMM,264
+RightWheel_Speed,0
+SideBrush_mA,0
+
+help setmotor
+SetMotor - Sets the specified motor to run in a direction at a requested speed. (TestMode Only)
+    LWheelDist - Distance in millimeters to drive Left wheel.
+                (Pos = forward, neg = backward) (-10000<Dist<10000)
+    RWheelDist - Distance in millimeters to drive Right wheel.
+                (Pos = forward, neg = backward) (-10000<Dist<10000)
+    Speed - Speed in millimeters/second (0<=Speed<=350). (Required only for wheel movements)
+    RPM - Next argument is the RPM of the motor. (0<=RPM<=10000)
+                Not used for wheels, but applied to all other motors specified in the command line.
+    Brush - Brush motor forward (Mutually exclusive with wheels and vacuum.)
+    VacuumOn - Vacuum motor on (Mutually exclusive with VacuumOff)
+    VacuumOff - Vacuum motor off (Mutually exclusive with VacuumOn)
+    VacuumSpeed - Vacuum speed in percent (1-100).
+    RWheelDisable - Disable Right Wheel motor
+    LWheelDisable - Disable Left Wheel motor
+    BrushDisable - Disable Brush motor
+    RWheelEnable - Enable Right Wheel motor
+    LWheelEnable - Enable Left Wheel motor
+    BrushEnable - Enable Brush motor
+    SideBrushEnable - Enable Side Brush Motor motor
+    SideBrushDisable - Enable Side Brush Motor motor
+    SideBrushOn - Enable the Side Brush
+    SideBrushOff - Disable the Side Brush
+    SideBrushPower - Side Brush maximum power in milliwatts
