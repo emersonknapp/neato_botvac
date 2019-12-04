@@ -35,7 +35,6 @@ def generate_launch_description():
 
     resolution = LaunchConfiguration('resolution', default='0.05')
     publish_period_sec = LaunchConfiguration('publish_period_sec', default='1.0')
-    # rviz_config = os.path.join(config_prefix, 'cartographer.rviz')
 
     return LaunchDescription([
         DeclareLaunchArgument(
@@ -79,12 +78,4 @@ def generate_launch_description():
                 'publish_period_sec': publish_period_sec
             }.items(),
         ),
-
-        # Node(
-        #     package='rviz2',
-        #     node_executable='rviz2',
-        #     node_name='rviz2',
-        #     arguments=['-d', rviz_config],
-        #     parameters=[{'use_sim_time': use_sim_time}],
-        #     output='screen'),
     ])

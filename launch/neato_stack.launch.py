@@ -27,16 +27,8 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    DeclareLaunchArgument(
-        'base_driver', default_value='true',
-        description='Set to "false" to skip launching the base driver')
-    DeclareLaunchArgument(
-        'viz', default_value='false',
-        description='Launch rviz?')
-
     parameters_file_dir = pathlib.Path(__file__).resolve().parent.parent
     parameters_file_path = parameters_file_dir / 'config' / 'teleop_xbox.config.yaml'
-
     description_launch_path = os.path.join(
         get_package_share_directory('neato_description'),
         'launch',
@@ -51,35 +43,39 @@ def generate_launch_description():
     print(rviz_config_path)
 
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'base_driver',
+            default_value='true',
+            description='Set to "false" to skip launching the base driver'),
+        DeclareLaunchArgument(
+            'viz',
+            default_value='false',
+            description='Launch rviz?'),
+
         Node(
             package='neato_botvac',
             node_executable='neato',
             node_name='neato_base',
             output='screen',
-            condition=IfCondition(LaunchConfiguration('base_driver')),
-        ),
+            condition=IfCondition(LaunchConfiguration('base_driver'))),
         Node(
             package='joy',
             node_executable='joy_node',
             node_name='joy_driver',
-            output='screen',
-        ),
+            output='screen'),
         Node(
             package='teleop_twist_joy',
             node_executable='teleop_node',
             node_name='joy_interpreter',
             parameters=[parameters_file_path],
-            output='screen',
-        ),
+            output='screen'),
         Node(
             package='rviz2',
             node_executable='rviz2',
             node_name='rviz2',
             arguments=['-d', rviz_config_path],
             output='screen',
-            condition=IfCondition(LaunchConfiguration('viz')),
-        ),
+            condition=IfCondition(LaunchConfiguration('viz'))),
         IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(description_launch_path)
-        ),
+            PythonLaunchDescriptionSource(description_launch_path)),
     ])
