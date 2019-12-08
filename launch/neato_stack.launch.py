@@ -51,23 +51,29 @@ def generate_launch_description():
             'viz',
             default_value='false',
             description='Launch rviz?'),
+        DeclareLaunchArgument('use_sim_time', default_value='false'),
 
         Node(
             package='neato_botvac',
             node_executable='neato',
             node_name='neato_base',
             output='screen',
+            parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
             condition=IfCondition(LaunchConfiguration('base_driver'))),
         Node(
             package='joy',
             node_executable='joy_node',
             node_name='joy_driver',
+            parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
             output='screen'),
         Node(
             package='teleop_twist_joy',
             node_executable='teleop_node',
             node_name='joy_interpreter',
-            parameters=[parameters_file_path],
+            parameters=[
+                parameters_file_path,
+                {'use_sim_time': LaunchConfiguration('use_sim_time')},
+            ],
             output='screen'),
         Node(
             package='rviz2',
@@ -75,6 +81,7 @@ def generate_launch_description():
             node_name='rviz2',
             arguments=['-d', rviz_config_path],
             output='screen',
+            parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
             condition=IfCondition(LaunchConfiguration('viz'))),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(description_launch_path)),

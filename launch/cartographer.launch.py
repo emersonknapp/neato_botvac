@@ -24,58 +24,46 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    use_sim_time = LaunchConfiguration('use_sim_time', default='true')
+    # use_sim_time = LaunchConfiguration('use_sim_time', default='false')
     config_prefix = os.path.join(get_package_share_directory('neato_botvac'), 'config')
-    cartographer_config_dir = LaunchConfiguration(
-        'cartographer_config_dir',
-        default=config_prefix)
-    configuration_basename = LaunchConfiguration(
-        'configuration_basename',
-        default='neato_lds_2d.lua')
-
-    resolution = LaunchConfiguration('resolution', default='0.05')
-    publish_period_sec = LaunchConfiguration('publish_period_sec', default='1.0')
 
     return LaunchDescription([
         DeclareLaunchArgument(
             'cartographer_config_dir',
-            default_value=cartographer_config_dir,
+            default_value=config_prefix,
             description='Full path to config file to load'),
         DeclareLaunchArgument(
             'configuration_basename',
-            default_value=configuration_basename,
+            default_value='neato_lds_2d.lua',
             description='Name of lua file for cartographer'),
-        DeclareLaunchArgument(
-            'use_sim_time',
-            default_value='false',
-            description='Use simulation (Gazebo) clock if true'),
+        DeclareLaunchArgument('use_sim_time', default_value='true'),
 
         Node(
             package='cartographer_ros',
             node_executable='cartographer_node',
             node_name='cartographer_node',
             output='screen',
-            parameters=[{'use_sim_time': use_sim_time}],
+            parameters=[{'use_sim_time': True}],  # LaunchConfiguration('use_sim_time')}],
             arguments=[
-                '-configuration_directory', cartographer_config_dir,
-                '-configuration_basename', configuration_basename,
+                '-configuration_directory', LaunchConfiguration('cartographer_config_dir'),
+                '-configuration_basename', LaunchConfiguration('configuration_basename'),
                 '--undefok=r,params-file,ros-args']),
 
         DeclareLaunchArgument(
             'resolution',
-            default_value=resolution,
+            default_value='0.05',
             description='Resolution of a grid cell in the published occupancy grid'),
         DeclareLaunchArgument(
             'publish_period_sec',
-            default_value=publish_period_sec,
+            default_value='1.0',
             description='OccupancyGrid publishing period'),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([ThisLaunchFileDir(), '/occupancy_grid.launch.py']),
             launch_arguments={
-                'use_sim_time': use_sim_time,
-                'resolution': resolution,
-                'publish_period_sec': publish_period_sec
+                'use_sim_time': LaunchConfiguration('use_sim_time'),
+                'resolution': LaunchConfiguration('resolution'),
+                'publish_period_sec': LaunchConfiguration('publish_period_sec'),
             }.items(),
         ),
     ])
