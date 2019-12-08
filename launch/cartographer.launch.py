@@ -43,7 +43,7 @@ def generate_launch_description():
             node_executable='cartographer_node',
             node_name='cartographer_node',
             output='screen',
-            parameters=[{'use_sim_time': True}],  # LaunchConfiguration('use_sim_time')}],
+            parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
             arguments=[
                 '-configuration_directory', LaunchConfiguration('cartographer_config_dir'),
                 '-configuration_basename', LaunchConfiguration('configuration_basename'),
