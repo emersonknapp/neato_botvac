@@ -31,9 +31,10 @@ def generate_launch_description():
     parameters_file_path = parameters_file_dir / 'config' / 'teleop_xbox.config.yaml'
     description_launch_path = os.path.join(
         get_package_share_directory('neato_description'),
-        'launch',
-        'description.launch.py'
-    )
+        'launch', 'description.launch.py')
+    cartographer_launch_path = os.path.join(
+        get_package_share_directory('neato_botvac'),
+        'launch', 'cartographer.launch.py')
 
     rviz_config_path = os.path.join(
         get_package_share_directory('neato_botvac'),
@@ -43,14 +44,9 @@ def generate_launch_description():
     print(rviz_config_path)
 
     return LaunchDescription([
-        DeclareLaunchArgument(
-            'base_driver',
-            default_value='true',
-            description='Set to "false" to skip launching the base driver'),
-        DeclareLaunchArgument(
-            'viz',
-            default_value='false',
-            description='Launch rviz?'),
+        DeclareLaunchArgument('base_driver', default_value='true'),
+        DeclareLaunchArgument('viz', default_value='false'),
+        DeclareLaunchArgument('slam', default_value='false'),
         DeclareLaunchArgument('use_sim_time', default_value='false'),
 
         Node(
@@ -85,4 +81,7 @@ def generate_launch_description():
             condition=IfCondition(LaunchConfiguration('viz'))),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(description_launch_path)),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(cartographer_launch_path),
+            condition=IfCondition(LaunchConfiguration('slam'))),
     ])
